@@ -82,6 +82,9 @@ export const API = {
   get AlertDialogBuilder() {
     return Java.use("android.app.AlertDialog$Builder");
   },
+  get AlertDialog() {
+    return Java.use("android.app.AlertDialog");
+  },
   get OnTouchListener() {
     return Java.use("android.view.View$OnTouchListener");
   },

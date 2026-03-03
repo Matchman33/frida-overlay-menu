@@ -27,7 +27,6 @@ export class Selector extends UIComponent {
 
     // Convert JavaScript strings to Java strings
     const javaItems = this.items.map((item) => String.$new(item.lable));
-    // const R = Java.use("android.R");
 
     const adapter = ArrayAdapter.$new(
       context,
@@ -119,7 +118,6 @@ export class Selector extends UIComponent {
         const String = API.JString;
         // Convert JavaScript strings to Java strings
         const javaItems = items.map((item) => String.$new(item.lable));
-        // const R = Java.use("android.R");
 
         const adapter = ArrayAdapter.$new(
           context,

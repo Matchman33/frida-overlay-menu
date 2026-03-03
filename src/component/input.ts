@@ -165,7 +165,7 @@ export class NumberInput extends UIComponent {
 
       // ---- Overlay window type (avoid BadTokenException)
       const window = dialog.getWindow();
-      const BuildVERSION = Java.use("android.os.Build$VERSION");
+      const BuildVERSION = API.BuildVERSION;
       if (window) {
         if (BuildVERSION.SDK_INT.value >= 26) {
           window.setType(LayoutParams.TYPE_APPLICATION_OVERLAY.value);
@@ -196,7 +196,7 @@ export class NumberInput extends UIComponent {
         }
 
         // Buttons color
-        const AlertDialog = Java.use("android.app.AlertDialog");
+        const AlertDialog = API.AlertDialog;
         const ad = Java.cast(dialog, AlertDialog);
         const BUTTON_POSITIVE = -1;
         const BUTTON_NEGATIVE = -2;
@@ -239,7 +239,7 @@ export class NumberInput extends UIComponent {
         if (titleId && titleId !== 0) {
           const tv = dialog.findViewById(titleId);
           if (tv) {
-            const TextView = Java.use("android.widget.TextView");
+            const TextView = API.TextView;
             const t = Java.cast(tv, TextView);
             t.setTextColor(this.menu.options.theme!.colors.text);
             // t.setTextSize(2, this.menu.options.theme!.textSp.title);
@@ -428,7 +428,7 @@ export class TextInput extends UIComponent {
       bg.setStroke(dp(context, 1), this.menu.options.theme!.colors.divider);
       // 关键步骤：修改对话框窗口的类型
       const window = dialog.getWindow();
-      const BuildVERSION = Java.use("android.os.Build$VERSION");
+      const BuildVERSION = API.BuildVERSION;
       if (window) {
         if (BuildVERSION.SDK_INT.value >= 26) {
           window.setType(LayoutParams.TYPE_APPLICATION_OVERLAY.value);
@@ -454,7 +454,7 @@ export class TextInput extends UIComponent {
 
       // ✅ 按钮主题化
       try {
-        const AlertDialog = Java.use("android.app.AlertDialog");
+        const AlertDialog = API.AlertDialog;
         const ad = Java.cast(dialog, AlertDialog);
 
         const BUTTON_POSITIVE = -1; // AlertDialog.BUTTON_POSITIVE
@@ -498,7 +498,7 @@ export class TextInput extends UIComponent {
         if (titleId && titleId !== 0) {
           const tv = dialog.findViewById(titleId);
           if (tv) {
-            const TextView = Java.use("android.widget.TextView");
+            const TextView = API.TextView;
             const t = Java.cast(tv, TextView);
             t.setTextColor(this.menu.options.theme!.colors.text);
             // t.setTextSize(2, this.menu.options.theme!.textSp.title);
