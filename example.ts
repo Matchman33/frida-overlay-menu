@@ -15,6 +15,7 @@ import { NumberInput, TextInput } from "./src/component/input";
 import { CheckBoxGroup } from "./src/component/checkBox";
 import { ImageView } from "./src/component/image";
 import { DarkNeonTheme } from "./src/component/style/theme";
+import { TextView } from "./src/component/text";
 
 // Optional: attach to global for easier access in Frida REPL
 // import { attachToGlobal } from './src/index';
@@ -55,7 +56,7 @@ Java.perform(() => {
 
   // === Tab 2: Inputs (TextInput, NumberInput) ===
 
-  const catInputs = new Category("inputs_cat", "Input Components");
+  const catInputs = new TextView("inputs_cat", "Input Components");
   menu.addComponent(catInputs, "inputs");
 
   // TextInput component (single line)

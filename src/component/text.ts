@@ -2,7 +2,7 @@ import { API } from "../api";
 import { applyStyle } from "./style/style";
 import { UIComponent } from "./ui-components";
 
-export class Text extends UIComponent {
+export class TextView extends UIComponent {
   private content: string;
 
   constructor(id: string, content: string) {

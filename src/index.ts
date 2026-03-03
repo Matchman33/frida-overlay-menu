@@ -14,6 +14,6 @@ export { NumberInput, TextInput } from "./component/input";
 export { Selector } from "./component/selector";
 export { Slider } from "./component/slider";
 export { Switch } from "./component/switch";
-export { Text } from "./component/text";
+export { TextView as Text } from "./component/text";
 // FloatMenu main class
 export { FloatMenu, FloatMenuOptions, TabDefinition } from "./float-menu";

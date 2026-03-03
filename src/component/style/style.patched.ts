@@ -1,4 +1,3 @@
-import { API } from "../../api";
 import { Theme } from "./theme";
 
 export type StyleRole =
@@ -34,7 +33,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
   // color helper: 0xAARRGGBB
   const withAlpha = (color: number, alpha: number) => {
     const a = Math.max(0, Math.min(255, alpha)) & 0xff;
-    return (a << 24) | (color & 0x00ffffff) | 0;
+    return ((a << 24) | (color & 0x00ffffff)) | 0;
   };
   const GradientDrawable = Java.use(
     "android.graphics.drawable.GradientDrawable",
@@ -78,8 +77,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "category": {
       // 分组标题：用 accentSoft + 更明显描边，和 row / input 区分开
-      const bg =
-        theme.colors.accentSoft ?? withAlpha(theme.colors.accent, 0x22);
+      const bg = theme.colors.accentSoft ?? withAlpha(theme.colors.accent, 0x22);
       const stroke = theme.colors.accentStroke ?? theme.colors.controlStroke;
       rounded(bg, theme.radiusDp.card, { c: stroke, wDp: 2 });
       view.setPadding(dpx(14), dpx(10), dpx(14), dpx(10));
@@ -88,21 +86,13 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
         tv.setTextColor(theme.colors.text);
         tv.setTextSize(2, theme.textSp.title);
         tv.setTypeface(null, 1);
-        tv.setGravity(API.Gravity.CENTER.value);
-        // ✅ 加粗（等价于 Typeface.BOLD）
-        try {
-          tv.setTypeface(null, 1); // 1 = Typeface.BOLD
-        } catch (e) {
-          // 有些 ROM/桥接下 setTypeface 可能不稳定，忽略即可
-        }
       }
       break;
     }
 
     case "row": {
       // row：弱交互的“承载块”，不要和 input / trigger 同质化
-      const rowBg =
-        theme.colors.rowBg ?? withAlpha(theme.colors.controlBg, 0x22);
+      const rowBg = theme.colors.rowBg ?? withAlpha(theme.colors.controlBg, 0x22);
       const stroke = withAlpha(theme.colors.controlStroke, 0x33);
       rounded(rowBg, theme.radiusDp.control, { c: stroke, wDp: 1 });
       view.setPadding(dpx(12), dpx(10), dpx(12), dpx(10));
@@ -179,10 +169,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       const bg = GradientDrawable.$new();
       bg.setCornerRadius(dp(ctx, 14));
       bg.setColor(theme.colors.cardBg);
-      bg.setStroke(
-        dp(ctx, 1),
-        theme.colors.accentStroke ?? theme.colors.controlStroke,
-      );
+      bg.setStroke(dp(ctx, 1), theme.colors.accentStroke ?? theme.colors.controlStroke);
 
       view.setBackgroundDrawable(bg);
       view.setPadding(dp(ctx, 10), dp(ctx, 8), dp(ctx, 10), dp(ctx, 8));
@@ -199,10 +186,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       const bg = GradientDrawable.$new();
       bg.setCornerRadius(dp(ctx, 10));
       bg.setColor(0x00000000); // 透明
-      bg.setStroke(
-        dp(ctx, 1),
-        theme.colors.accentStroke ?? theme.colors.controlStroke,
-      );
+      bg.setStroke(dp(ctx, 1), theme.colors.accentStroke ?? theme.colors.controlStroke);
 
       view.setBackgroundDrawable(bg);
       view.setPadding(dp(ctx, 6), dp(ctx, 6), dp(ctx, 6), dp(ctx, 6));
@@ -264,10 +248,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       const bg = GradientDrawable.$new();
       bg.setCornerRadius(dp(ctx, 999)); // 胶囊
       bg.setColor(theme.colors.chipBg ?? theme.colors.rowBg);
-      bg.setStroke(
-        dp(ctx, 1),
-        theme.colors.accentStroke ?? theme.colors.controlStroke,
-      );
+      bg.setStroke(dp(ctx, 1), theme.colors.accentStroke ?? theme.colors.controlStroke);
 
       view.setBackgroundDrawable(bg);
       view.setPadding(dp(ctx, 10), dp(ctx, 4), dp(ctx, 10), dp(ctx, 4));
@@ -288,10 +269,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       const bg = GradientDrawable.$new();
       bg.setCornerRadius(dp(ctx, 14));
       bg.setColor(theme.colors.cardBg);
-      bg.setStroke(
-        dp(ctx, 1),
-        theme.colors.accentStroke ?? theme.colors.controlStroke,
-      );
+      bg.setStroke(dp(ctx, 1), theme.colors.accentStroke ?? theme.colors.controlStroke);
 
       view.setBackgroundDrawable(bg);
       view.setPadding(dp(ctx, 12), dp(ctx, 12), dp(ctx, 12), dp(ctx, 12));
@@ -308,10 +286,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       const bg = GradientDrawable.$new();
       bg.setCornerRadius(dp(ctx, 12));
       bg.setColor(theme.colors.inputBg ?? theme.colors.rowBg);
-      bg.setStroke(
-        dp(ctx, 1),
-        theme.colors.accentStroke ?? theme.colors.controlStroke,
-      );
+      bg.setStroke(dp(ctx, 1), theme.colors.accentStroke ?? theme.colors.controlStroke);
 
       view.setBackgroundDrawable(bg);
       view.setPadding(dp(ctx, 12), dp(ctx, 10), dp(ctx, 12), dp(ctx, 10));
