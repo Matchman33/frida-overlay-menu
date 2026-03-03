@@ -127,12 +127,8 @@ export class CheckBoxGroup extends UIComponent {
     );
     const boolArray = Java.array("boolean", checkedArr);
 
-    const DialogMultiChoiceListener = Java.use(
-      "android.content.DialogInterface$OnMultiChoiceClickListener",
-    );
-    const DialogClickListener = Java.use(
-      "android.content.DialogInterface$OnClickListener",
-    );
+    const DialogMultiChoiceListener = API.DialogMultiChoiceListener
+    const DialogClickListener = API.DialogClickListener
 
     const self = this;
 
@@ -205,8 +201,8 @@ export class CheckBoxGroup extends UIComponent {
     const dialog = builder.create();
 
     // ✅ 关键：把 Dialog 变成 Overlay Window，否则没有 Activity token 会 BadToken
-    const WindowManagerLP = Java.use("android.view.WindowManager$LayoutParams");
-    const BuildVERSION = Java.use("android.os.Build$VERSION");
+    const WindowManagerLP = API.LayoutParams;
+    const BuildVERSION = API.BuildVERSION;
 
     const win = dialog.getWindow();
     if (win) {

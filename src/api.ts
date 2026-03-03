@@ -11,6 +11,12 @@ export const API = {
   get Gravity() {
     return Java.use("android.view.Gravity");
   },
+  get DialogMultiChoiceListener() {
+    return Java.use("android.content.DialogInterface$OnMultiChoiceClickListener");
+  },
+  get DialogClickListener() {
+    return Java.use("android.content.DialogInterface$OnClickListener");
+  },
     get HorizontalScrollView() {
     return Java.use("android.widget.HorizontalScrollView");
   },
@@ -123,6 +129,9 @@ export const API = {
   },
   get LayoutParams() {
     return Java.use("android.view.WindowManager$LayoutParams");
+  },
+  get BuildVERSION() {
+    return Java.use("android.os.Build$VERSION");
   },
   get LinearLayout() {
     return Java.use("android.widget.LinearLayout");

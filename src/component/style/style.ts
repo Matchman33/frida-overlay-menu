@@ -1,3 +1,4 @@
+import { API } from "../../api";
 import { Theme } from "./theme";
 
 export type StyleRole =
@@ -26,10 +27,8 @@ export function dp(ctx: any, v: number): number {
 
 export function applyStyle(view: any, role: StyleRole, theme: Theme) {
   const ctx = view.getContext();
-  const GradientDrawable = Java.use(
-    "android.graphics.drawable.GradientDrawable",
-  );
-  const TextView = Java.use("android.widget.TextView");
+  const GradientDrawable = API.GradientDrawable;
+  const TextView = API.TextView;
 
   const rounded = (
     bg: number,
@@ -152,9 +151,8 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "headerBar": {
       // 用于悬浮窗顶部标题栏
-      const GradientDrawable = Java.use(
-        "android.graphics.drawable.GradientDrawable",
-      );
+
+      const GradientDrawable = API.GradientDrawable;
       const ctx = view.getContext();
 
       const bg = GradientDrawable.$new();
@@ -169,9 +167,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "iconButton": {
       // 小方块按钮，适合 “— / × / ⚙ / 隐藏”
-      const GradientDrawable = Java.use(
-        "android.graphics.drawable.GradientDrawable",
-      );
+      const GradientDrawable = API.GradientDrawable;
       const ctx = view.getContext();
 
       const bg = GradientDrawable.$new();
@@ -231,9 +227,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "chip": {
       // 小胶囊（比如“已启用 / 3项已选”）
-      const GradientDrawable = Java.use(
-        "android.graphics.drawable.GradientDrawable",
-      );
+      const GradientDrawable = API.GradientDrawable;
       const ctx = view.getContext();
 
       const bg = GradientDrawable.$new();
@@ -252,9 +246,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "dialog": {
       // 给 dialog 的 decor / container 用：圆角暗底 + 描边
-      const GradientDrawable = Java.use(
-        "android.graphics.drawable.GradientDrawable",
-      );
+      const GradientDrawable = API.GradientDrawable;
       const ctx = view.getContext();
 
       const bg = GradientDrawable.$new();
@@ -269,9 +261,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
     case "inputField": {
       // 真正的 EditText 输入框（比 inputTrigger 更“可编辑”）
-      const GradientDrawable = Java.use(
-        "android.graphics.drawable.GradientDrawable",
-      );
+      const GradientDrawable = API.GradientDrawable;
       const ctx = view.getContext();
 
       const bg = GradientDrawable.$new();
@@ -292,9 +282,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
 
 export function applyEditTextStyle(editText: any, theme: Theme) {
   const ctx = editText.getContext();
-  const GradientDrawable = Java.use(
-    "android.graphics.drawable.GradientDrawable",
-  );
+  const GradientDrawable = API.GradientDrawable;
 
   const d = GradientDrawable.$new();
   d.setColor(theme.colors.controlBg);
