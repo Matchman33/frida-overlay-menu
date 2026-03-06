@@ -5,6 +5,7 @@ import { API } from "./api";
 import { dp, applyStyle } from "./component/style/style";
 import { DarkNeonTheme, Theme } from "./component/style/theme";
 import { LogView as LogViewWindow } from "./component/views/log-view";
+import { logicalToWindow } from "./utils";
 
 export interface TabDefinition {
   id: string;
@@ -75,6 +76,7 @@ export class FloatMenu {
   isLogDrawerOpen: boolean = false;
   _loggerUnsub: any;
   logger: Logger;
+  overlayLayer: any;
   public get context(): any {
     if (this._context === null) {
       this._context = Java.use("android.app.ActivityThread")
@@ -113,6 +115,8 @@ export class FloatMenu {
       showTabs: undefined, // Will be determined based on tabs array
       ...options,
     };
+    this.logger = Logger.instance;
+
     Java.perform(() => {
       const resources = this.context.getResources();
       const metrics = resources.getDisplayMetrics();
@@ -124,19 +128,15 @@ export class FloatMenu {
         this.screenHeight - 80,
       );
     });
-    console.log("屏幕尺寸:", this.screenWidth, this.screenHeight);
+    this.logger.info("屏幕尺寸:", this.screenWidth, this.screenHeight);
 
-    this.logger = Logger.instance;
     setInterval(() => {
-      Logger.instance.info(
-        "Logger initialized with level: " + "123" ? "debug" : "none",
-      );
+      this.logger.info(Math.random().toString(36).substring(12));
     }, 1000);
 
     // Initialize tabs
     this.initializeTabs();
-
-    console.info("FloatMenu initialized");
+    this.logger.info("FloatMenu initialized");
   }
 
   /**
@@ -180,39 +180,22 @@ export class FloatMenu {
     }
   }
 
-  /**
-   * 逻辑坐标转换为真实坐标，以左上角为原点转换为屏幕中心为原点
-   * @param lx
-   * @param ly
-   * @returns
-   */
-  private logicalToWindow(lx: number, ly: number) {
-    const sw = this.screenWidth;
-    const sh = this.screenHeight;
-    const w = this.isIconMode ? this.options.iconWidth! : this.options.width!;
-    const h = this.isIconMode ? this.options.iconHeight! : this.options.height!;
-    return {
-      x: Math.round(lx - (sw - w) / 2),
-      y: Math.round(ly - (sh - h) / 2),
-    };
-  }
-
-  /**
-   * 真实坐标转换为逻辑坐标，以左上角为原点转换为屏幕中心为原点
-   * @param wx
-   * @param wy
-   * @returns
-   */
-  private windowToLogical(wx: number, wy: number) {
-    const sw = this.screenWidth;
-    const sh = this.screenHeight;
-    const w = this.isIconMode ? this.options.iconWidth! : this.options.width!;
-    const h = this.isIconMode ? this.options.iconHeight! : this.options.height!;
-    return {
-      x: Math.round(wx + (sw - w) / 2),
-      y: Math.round(wy + (sh - h) / 2),
-    };
-  }
+  // /**
+  //  * 真实坐标转换为逻辑坐标，以左上角为原点转换为屏幕中心为原点
+  //  * @param wx
+  //  * @param wy
+  //  * @returns
+  //  */
+  // private windowToLogical(wx: number, wy: number) {
+  //   const sw = this.screenWidth;
+  //   const sh = this.screenHeight;
+  //   const w = this.isIconMode ? this.options.iconWidth! : this.options.width!;
+  //   const h = this.isIconMode ? this.options.iconHeight! : this.options.height!;
+  //   return {
+  //     x: Math.round(wx + (sw - w) / 2),
+  //     y: Math.round(wy + (sh - h) / 2),
+  //   };
+  // }
 
   private addDragListener(targetView: any, window: any, winParams: any) {
     const OnTouchListener = API.OnTouchListener;
@@ -290,7 +273,18 @@ export class FloatMenu {
                 let wy = rawY - touchOffsetY;
 
                 // window → logical（如果你当前还在用 logical 做边界）
-                const p = self.windowToLogical(wx, wy);
+                const p = logicalToWindow(
+                  wx,
+                  wy,
+                  this.screenWidth,
+                  this.screenHeight,
+                  this.isIconMode
+                    ? this.options.iconWidth!
+                    : this.options.width!,
+                  this.isIconMode
+                    ? this.options.iconHeight!
+                    : this.options.height!,
+                );
                 let newX = p.x;
                 let newY = p.y;
 
@@ -340,7 +334,9 @@ export class FloatMenu {
   }
 
   private createMenuContainerWindow() {
+    const FrameLayout = API.FrameLayout;
     const LinearLayout = API.LinearLayout;
+    const FrameLayoutParams = API.FrameLayoutParams;
     const ViewGroupLayoutParams = API.ViewGroupLayoutParams;
     const View = API.View;
     const LayoutParams = API.LayoutParams;
@@ -348,14 +344,13 @@ export class FloatMenu {
     // --------------------
     // 创建 window root（透明根容器）
     // --------------------
-    this.menuContainerView = LinearLayout.$new(this.context);
-    this.menuContainerView.setOrientation(LinearLayout.VERTICAL.value);
-    const layoutParams = ViewGroupLayoutParams.$new(
+    this.menuContainerView = FrameLayout.$new(this.context);
+    const rootLp = FrameLayoutParams.$new(
       ViewGroupLayoutParams.MATCH_PARENT.value,
       ViewGroupLayoutParams.MATCH_PARENT.value,
     );
-    layoutParams.gravity = API.Gravity.TOP.value | API.Gravity.START.value;
-    this.menuContainerView.setLayoutParams(layoutParams);
+    rootLp.gravity = API.Gravity.TOP.value | API.Gravity.START.value;
+    this.menuContainerView.setLayoutParams(rootLp);
 
     // root 保持透明，避免灰块叠加
     try {
@@ -391,8 +386,35 @@ export class FloatMenu {
     // 保存引用：以后内容都加到 panel
     this.menuPanelView = panel;
 
-    // root -> panel
+    // --------------------
+    // overlayLayer（永远最上层：日志抽屉/弹窗都挂这里）
+    // --------------------
+    const overlay = FrameLayout.$new(this.context);
+    overlay.setLayoutParams(
+      FrameLayoutParams.$new(
+        ViewGroupLayoutParams.MATCH_PARENT.value,
+        ViewGroupLayoutParams.MATCH_PARENT.value,
+      ),
+    );
+    // 避免裁剪 overlay
+    try {
+      overlay.setClipChildren(false);
+    } catch (e) {}
+    try {
+      overlay.setClipToPadding(false);
+    } catch (e) {}
+    // 抬高 Z，确保压过 tab 吸顶/RecyclerView
+    try {
+      overlay.setElevation(100000);
+    } catch (e) {}
+    try {
+      overlay.setTranslationZ(100000);
+    } catch (e) {}
+    this.overlayLayer = overlay;
+
+    // root -> panel -> overlay（overlay 必须最后 add）
     this.menuContainerView.addView(panel);
+    this.menuContainerView.addView(overlay);
 
     // --------------------
     // Window 参数
@@ -412,12 +434,12 @@ export class FloatMenu {
     // 往 panel 里塞内容（别再塞到 menuContainerView）
     // --------------------
     this.createHeaderView(this.context);
-    this.menuPanelView.addView(this.headerView);
+    // this.menuPanelView.addView(this.headerView);
 
     // tab bar
     if (this.options.showTabs) {
       this.createTabView(this.context);
-      this.menuPanelView.addView(this.tabView);
+      // this.menuPanelView.addView(this.tabView);
     }
 
     // 在 createMenuContainerWindow() 里，this.createTabContainer(this.context); 之后插入
@@ -445,7 +467,14 @@ export class FloatMenu {
     winParams: any,
     newPos: { x: number; y: number },
   ): void {
-    const { x: wx, y: wy } = this.logicalToWindow(newPos.x, newPos.y);
+    const { x: wx, y: wy } = logicalToWindow(
+      newPos.x,
+      newPos.y,
+      this.screenWidth,
+      this.screenHeight,
+      this.isIconMode ? this.options.iconWidth! : this.options.width!,
+      this.isIconMode ? this.options.iconHeight! : this.options.height!,
+    );
     winParams.x.value = wx | 0;
     winParams.y.value = wy | 0;
 
@@ -485,7 +514,14 @@ export class FloatMenu {
 
     this.iconView.setScaleType(ImageView$ScaleType.FIT_CENTER.value);
 
-    const { x, y } = this.logicalToWindow(this.options.x!, this.options.y!);
+    const { x, y } = logicalToWindow(
+      this.options.x!,
+      this.options.y!,
+      this.screenWidth,
+      this.screenHeight,
+      this.options.iconWidth!,
+      this.options.iconHeight!,
+    );
     // icon window
     this.iconWindowParams = LayoutParams.$new(
       this.options.iconWidth,
@@ -1134,6 +1170,7 @@ export class FloatMenu {
 
       // ✅ 对外暴露
       this.tabView = scrollView;
+      this.menuPanelView.addView(this.tabView);
 
       // ✅ 你原来的 updateTabStyle 仍然能用，但建议直接在 switchTab 里调用下面这个刷新函数
       // this.refreshTabsUI();  // 可选
@@ -1290,7 +1327,7 @@ export class FloatMenu {
       // 日志：用 “L” 或 “📝”，建议用简单字符避免字体缺失
       const logView = new LogViewWindow(
         context,
-        this.options.width!,
+        this.options.height! - 240,
         this.options.theme!,
         this.options.logMaxLines,
       );
@@ -1301,6 +1338,7 @@ export class FloatMenu {
           implements: [API.OnClickListener],
           methods: {
             onClick: function () {
+              logView.createViewOnce(self.overlayLayer);
               // 开合
               if (logView.isLogDrawerOpen) {
                 logView.closeLogDrawer();
@@ -1360,6 +1398,8 @@ export class FloatMenu {
 
       this.headerView.addView(titleView);
       this.headerView.addView(rightBox);
+
+      this.menuPanelView.addView(this.headerView);
 
       // drag support
       this.addDragListener(

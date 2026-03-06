@@ -4,29 +4,26 @@ import { dp } from "../style/style";
 
 export class LogView {
   private context: any;
-  logDrawerMask: any;
-  logDrawerPanel: any;
-  options: any;
-  menuPanelView: any;
+  private logDrawerPanel: any;
   public isLogDrawerOpen: boolean = false;
-  _loggerUnsub: any;
-  logView: any;
-
-  private width: number;
-  logMaxLines: number;
-  theme: any;
+  private _loggerUnsub: any;
+  private logView: any;
+  private logMaxLines: number;
+  private theme: any;
+  private parentView: any;
+  private height: number;
+  logScrollView: any;
 
   constructor(
     context: any,
-    width: number,
+    height: number,
     theme: any,
     logMaxLines: number = 100,
   ) {
     this.context = context;
-    this.width = width;
+    this.height = height;
     this.logMaxLines = logMaxLines;
     this.theme = theme;
-    this.createView();
   }
   // ensureLogDrawer() 里：创建完 logViewRoot / this.logView 之后调用一次
   private bindLoggerToLogViewOnce(): void {
@@ -41,7 +38,7 @@ export class LogView {
       // 直接循环调用 addLogToView（它内部会入队并节流到一次 UI 刷新）
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
-        self.addLogToView(it.level, it.message);
+        self.addLogToView(it.level, it.message, it.ts);
       }
     }, true);
   }
@@ -56,7 +53,7 @@ export class LogView {
   private _logPending: string[] = [];
   private _logFlushScheduled: boolean = false;
 
-  private addLogToView(level: LogLevel, message: string): void {
+  private addLogToView(level: LogLevel, message: string, ts: number): void {
     if (!this.logView) return;
 
     const maxLines = this.logMaxLines | 0;
@@ -74,8 +71,10 @@ export class LogView {
       this.logView.setText(API.JString.$new(""));
     }
 
-    // 入队（非常轻）
-    this._logPending.push(`[${level}] ${message}`);
+    // 入队（非常轻），添加事件，只要时分秒
+    this._logPending.push(
+      `[${level.toUpperCase()} ${new Date(ts).toTimeString().substring(0, 8)}] ${message}`,
+    );
 
     // 节流：同一“帧/短时间”只安排一次刷新
     if (this._logFlushScheduled) return;
@@ -107,70 +106,64 @@ export class LogView {
       }
 
       this.logView.setText(API.JString.$new(out));
+      // try {
+      //   const sv = this.logScrollView; // ScrollView
+      //   const View = API.View;
+
+      //   sv.post(
+      //     Java.registerClass({
+      //       name: "LogScrollToBottom" + Date.now(),
+      //       implements: [Java.use("java.lang.Runnable")],
+      //       methods: {
+      //         run: function () {
+      //           try {
+      //             sv.fullScroll(View.FOCUS_DOWN.value);
+      //           } catch {}
+      //         },
+      //       },
+      //     }).$new(),
+      //   );
+      // } catch {}
     });
   }
 
-  private createView() {
-    if (this.logDrawerMask && this.logDrawerPanel) return;
-
-    const FrameLayout = API.FrameLayout;
+  public createViewOnce(parentView: any) {
+    if (!parentView) {
+      console.error("LogView: parentView is null");
+      return;
+    }
+    this.parentView = parentView;
+    if (this.logDrawerPanel) return;
     const LinearLayout = API.LinearLayout;
     const FrameLayoutParams = API.FrameLayoutParams;
     const ViewGroupLayoutParams = API.ViewGroupLayoutParams;
     const Gravity = API.Gravity;
     const GradientDrawable = API.GradientDrawable;
-    const Color = API.Color;
-    const View = API.View;
 
-    const self = this;
     const ctx = this.context;
 
-    // 抽屉宽度：建议固定 dp，避免跟随窗口缩放导致抖动
-    const drawerW = dp(ctx, this.width - 80);
-
-    // ===== 1) 全屏遮罩（覆盖整个悬浮窗根容器）=====
-    const mask = FrameLayout.$new(ctx);
-    mask.setLayoutParams(
-      FrameLayoutParams.$new(
-        ViewGroupLayoutParams.MATCH_PARENT.value,
-        ViewGroupLayoutParams.MATCH_PARENT.value,
-      ),
-    );
-    mask.setVisibility(View.GONE.value);
-    mask.setClickable(true);
-
-    // 半透明遮罩
+    // 防裁剪
     try {
-      mask.setBackgroundColor(Color.parseColor("#66000000"));
-    } catch {
-      mask.setBackgroundColor(0x66000000);
-    }
+      this.parentView.setClipChildren(false);
+    } catch {}
+    try {
+      this.parentView.setClipToPadding(false);
+    } catch {}
 
-    // 点击遮罩关闭
-    mask.setOnClickListener(
-      Java.registerClass({
-        name: "LogDrawerMaskClickListener" + Date.now(),
-        implements: [API.OnClickListener],
-        methods: {
-          onClick: function () {
-            self.closeLogDrawer();
-          },
-        },
-      }).$new(),
-    );
-
-    // ===== 2) 右侧抽屉面板 =====
-    const panel = LinearLayout.$new(ctx);
-    panel.setOrientation(1); // VERTICAL
+    // ===== panel：底部弹出面板 =====
+    const panel = LinearLayout.$new(this.context);
+    panel.setOrientation(LinearLayout.VERTICAL.value);
 
     const panelLp = FrameLayoutParams.$new(
-      this.width - 80,
+      // this.width,
       ViewGroupLayoutParams.MATCH_PARENT.value,
+      // ViewGroupLayoutParams.MATCH_PARENT.value,
+      this.height,
     );
-    panelLp.gravity.value = Gravity.END.value | Gravity.TOP.value;
+    panelLp.gravity.value = Gravity.BOTTOM.value; // ✅ 底部
     panel.setLayoutParams(panelLp);
 
-    // 背景：圆角卡片
+    panel.setAlpha(0.9);
     const bg = GradientDrawable.$new();
     bg.setCornerRadius(dp(ctx, 14));
     bg.setColor(this.theme.colors.cardBg);
@@ -178,8 +171,24 @@ export class LogView {
     panel.setBackgroundDrawable(bg);
     panel.setPadding(dp(ctx, 8), dp(ctx, 8), dp(ctx, 8), dp(ctx, 8));
 
-    // 初始放在右侧屏外（关闭状态）
-    panel.setTranslationX(drawerW);
+    // 初始在屏幕下方（关闭状态）
+    try {
+      panel.setTranslationY(this.height);
+    } catch {}
+
+    // Z 置顶（防 TabLayout/RecyclerView elevation 盖住）
+    // try {
+    //   mask.setElevation(100000);
+    // } catch {}
+    try {
+      panel.setElevation(100001);
+    } catch {}
+    // try {
+    //   mask.setTranslationZ(100000);
+    // } catch {}
+    try {
+      panel.setTranslationZ(100001);
+    } catch {}
 
     // ===== 3) 内部日志内容：复用你 createLogView（高性能版）=====
     const logRoot = this.createLogView(); // ScrollView
@@ -189,36 +198,31 @@ export class LogView {
         ViewGroupLayoutParams.MATCH_PARENT.value,
       ),
     );
+    this.logScrollView = logRoot;
     panel.addView(logRoot);
 
     this.bindLoggerToLogViewOnce();
     // 组装
-    mask.addView(panel);
+    // mask.addView(panel);
 
     Java.scheduleOnMainThread(() => {
       try {
         // 关键：加到 menuContainerView 的最后，天然在最上层
-        this.parentView.addView(mask);
+        this.parentView.addView(panel);
 
         // 再保险：bringToFront + elevation
-        try {
-          mask.bringToFront();
-        } catch {}
+        // try {
+        //   mask.bringToFront();
+        // } catch {}
         try {
           panel.bringToFront();
-        } catch {}
-        try {
-          mask.setElevation(9999);
-        } catch {}
-        try {
-          panel.setElevation(10000);
         } catch {}
       } catch (e) {
         console.error("ensureLogDrawer failed: " + e);
       }
     });
 
-    this.logDrawerMask = mask;
+    // this.logDrawerPanel = mask;
     this.logDrawerPanel = panel;
   }
 
@@ -227,29 +231,29 @@ export class LogView {
    * @returns
    */
   public openLogDrawer(): void {
-    if (!this.logDrawerMask || !this.logDrawerPanel) return;
+    if (!this.logDrawerPanel) return;
 
     const View = API.View;
     this.isLogDrawerOpen = true;
 
     Java.scheduleOnMainThread(() => {
       try {
-        this.logDrawerMask!.setVisibility(View.VISIBLE.value);
-        this.logDrawerMask!.bringToFront();
-        this.logDrawerPanel!.bringToFront();
+        this.logDrawerPanel!.setVisibility(View.VISIBLE.value);
+        // 每次打开都置顶
+        try {
+          this.logDrawerPanel!.bringToFront();
+        } catch {}
 
-        // 轻量动画：translationX
+        // 动画：Y 从 height -> 0
         try {
           this.logDrawerPanel!.animate()
-            .translationX(0)
+            .translationY(0)
             .setDuration(180)
             .start();
         } catch {
-          this.logDrawerPanel!.setTranslationX(0);
+          this.logDrawerPanel!.setTranslationY(0);
         }
-      } catch (e) {
-        console.error("openLogDrawer failed: " + e);
-      }
+      } catch {}
     });
   }
 
@@ -258,37 +262,38 @@ export class LogView {
    * @returns
    */
   public closeLogDrawer(): void {
-    if (!this.logDrawerMask || !this.logDrawerPanel) return;
+    // if (!this.logDrawerPanel || !this.logDrawerPanel) return;
 
     const View = API.View;
-    const drawerW = dp(this.context, this.width - 80);
     this.isLogDrawerOpen = false;
+
+    const endAction = Java.registerClass({
+      name:
+        "LogBottomCloseEnd" +
+        Date.now() +
+        Math.random().toString(36).substring(4),
+      implements: [Java.use("java.lang.Runnable")],
+      methods: {
+        run: () => {
+          try {
+            this.logDrawerPanel!.setVisibility(View.GONE.value);
+          } catch {}
+        },
+      },
+    }).$new();
 
     Java.scheduleOnMainThread(() => {
       try {
-        // 动画结束隐藏 mask（避免它挡住悬浮窗交互）
+        // 动画：Y 到 height，结束隐藏 mask
         try {
           this.logDrawerPanel!.animate()
-            .translationX(drawerW)
+            .translationY(this.height)
             .setDuration(160)
-            .withEndAction(
-              Java.registerClass({
-                name:
-                  "LogDrawerCloseEndAction" +
-                  Date.now() +
-                  Math.random().toString(36).substring(4),
-                implements: [Java.use("java.lang.Runnable")],
-                methods: {
-                  run: () => {
-                    this.logDrawerMask!.setVisibility(View.GONE.value);
-                  },
-                },
-              }).$new(),
-            )
+            .withEndAction(endAction)
             .start();
         } catch {
-          this.logDrawerPanel!.setTranslationX(drawerW);
-          this.logDrawerMask!.setVisibility(View.GONE.value);
+          this.logDrawerPanel!.setTranslationY(this.height);
+          this.logDrawerPanel!.setVisibility(View.GONE.value);
         }
       } catch {}
     });

@@ -17,9 +17,7 @@ import { ImageView } from "./src/component/image";
 import { DarkNeonTheme } from "./src/component/style/theme";
 import { TextView } from "./src/component/text";
 
-// Optional: attach to global for easier access in Frida REPL
-// import { attachToGlobal } from './src/index';
-// attachToGlobal(globalThis);
+
 
 Java.perform(() => {
   console.log(
@@ -29,7 +27,7 @@ Java.perform(() => {
   const options: FloatMenuOptions = {
     width: 1200,
     height: 1400,
-    x: -100,
+    x: 0,
     y: 0,
     theme: DarkNeonTheme,
     iconWidth: 200,

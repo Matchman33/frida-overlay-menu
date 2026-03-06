@@ -80,17 +80,20 @@ export class Logger {
   }
 
   // ====== 打日志 ======
-  debug(message: string): void {
-    this._log("debug", message);
+  debug(...args: any[]): void {
+    this._log("debug", ...args);
   }
-  info(message: string): void {
-    this._log("info", message);
+
+  info(...args: any[]): void {
+    this._log("info", ...args);
   }
-  warn(message: string): void {
-    this._log("warn", message);
+
+  warn(...args: any[]): void {
+    this._log("warn", ...args);
   }
-  error(message: string): void {
-    this._log("error", message);
+
+  error(...args: any[]): void {
+    this._log("error", ...args);
   }
 
   // ====== 给日志窗口订阅（性能版）
@@ -139,21 +142,59 @@ export class Logger {
     // 也可以通知 UI 清空
     this.emitBatch([]); // 空批次表示“清空”由 UI 自己决定怎么处理
   }
+  private safeStringify(v: any): string {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      try {
+        return String(v);
+      } catch {
+        return "[Unstringifiable]";
+      }
+    }
+  }
+  private formatArgs(args: any[]): string {
+    if (!args || args.length === 0) return "";
 
+    // 单个字符串就不做额外处理
+    if (args.length === 1 && typeof args[0] === "string") return args[0];
+
+    // 多参数：用空格拼接；对象用安全 stringify
+    let out = "";
+    for (let i = 0; i < args.length; i++) {
+      const a = args[i];
+      let s: string;
+
+      if (typeof a === "string") s = a;
+      else if (a == null) s = String(a);
+      else if (
+        typeof a === "number" ||
+        typeof a === "boolean" ||
+        typeof a === "bigint"
+      )
+        s = String(a);
+      else if (a instanceof Error) s = a.stack || a.message || String(a);
+      else s = this.safeStringify(a);
+
+      if (i === 0) out = s;
+      else out += " " + s;
+    }
+    return out;
+  }
   // ====== 内部实现 ======
-  private _log(level: LogLevel, message: string): void {
-    console.log(level, message);
+  private _log(level: LogLevel, ...args: any[]): void {
     if (this.levelPriority[level] < this.levelPriority[this.currentLevel])
       return;
-
+    // 轻量格式化：字符串直接用，其他类型尽量安全 stringify
+    const msg = this.formatArgs(args);
     const item: LogItem = {
       ts: Date.now(),
       level,
-      message,
+      message: msg,
     };
 
-    // 控制台输出（你也可以按需关掉）
-    const formatted = `[${level.toUpperCase()}] ${message}`;
+    // 控制台输出（你也可以按需关掉），添加事件，只要时分秒
+    const formatted = `[${level.toUpperCase()} ${new Date(item.ts).toTimeString().substring(0, 8)}] ${msg}`;
     console.log(formatted);
 
     // 写入环形缓冲
