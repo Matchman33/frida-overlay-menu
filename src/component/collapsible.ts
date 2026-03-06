@@ -117,10 +117,17 @@ export class Collapsible extends UIComponent {
       const ctx = this.view.getContext();
       for (const c of this.pendingChildren) {
         try {
+          c.setMenu(this.menu);
           c.init(ctx);
+
           const v = c.getView();
+
           if (v) this.contentContainer.addView(v);
-        } catch (e) {}
+        } catch (e) {
+          console.error(
+            `[Collapsible:${this.id}] addChild: ${c.getId()} - ${e}`,
+          );
+        }
       }
       this.pendingChildren = [];
     }
@@ -227,11 +234,15 @@ export class Collapsible extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       try {
+        component.setMenu(this.menu);
+
         const ctx = this.view.getContext(); // ✅ 跟 float-menu 一样，拿容器 context
         component.init(ctx);
         const v = component.getView();
         if (v) this.contentContainer.addView(v);
-      } catch (e) {}
+      } catch (e) {
+        console.error(`[Collapsible:${this.id}] addChild error: ${e}`);
+      }
     });
   }
 
