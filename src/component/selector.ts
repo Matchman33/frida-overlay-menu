@@ -19,6 +19,7 @@ export class Selector extends UIComponent {
   }
 
   public getValue(): { lable: string; [key: string]: any } {
+    console.log(JSON.stringify(this.value));
     return this.value;
   }
 
@@ -70,6 +71,7 @@ export class Selector extends UIComponent {
         ) {
           self.selectedIndex = position;
           self.value = self.items[position];
+          console.log(JSON.stringify(self.value));
           self.emit("valueChanged", self.value);
           if (self.handler) setImmediate(() => self.handler!(self.value));
         },

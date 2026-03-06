@@ -117,6 +117,7 @@ export class Collapsible extends UIComponent {
       const ctx = this.view.getContext();
       for (const c of this.pendingChildren) {
         try {
+          this.menu.uiComponents.set(c.getId(), c);
           c.setMenu(this.menu);
           c.init(ctx);
 
@@ -234,6 +235,7 @@ export class Collapsible extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       try {
+        this.menu.uiComponents.set(component.getId(), component);
         component.setMenu(this.menu);
 
         const ctx = this.view.getContext(); // ✅ 跟 float-menu 一样，拿容器 context

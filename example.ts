@@ -19,7 +19,6 @@ import { Selector } from "./src/component/selector";
 import { Slider } from "./src/component/slider";
 
 Java.perform(() => {
-
   const options: FloatMenuOptions = {
     width: 1200,
     height: 1400,
@@ -49,21 +48,21 @@ Java.perform(() => {
   // ============================================
   // 标签页1: 基础组件 (Basic Components)
   // ============================================
-  
+
   const basicCategory = new Category("basic_category", "基础组件");
   menu.addComponent(basicCategory, "basic");
 
   // Text 组件
   const textComponent = new Text(
     "basic_text",
-    "这是一个文本组件，用于显示静态或动态的文本内容。"
+    "这是一个文本组件，用于显示静态或动态的文本内容。",
   );
   menu.addComponent(textComponent, "basic");
 
   // Text 组件（带HTML富文本）
   const richText = new Text(
     "rich_text",
-    "HTML <b>富文本</b> 支持：<br/>- <b>粗体</b><br/>- <i>斜体</i><br/>- <u>下划线</u>"
+    "HTML <b>富文本</b> 支持：<br/>- <b>粗体</b><br/>- <i>斜体</i><br/>- <u>下划线</u>",
   );
   menu.addComponent(richText, "basic");
 
@@ -77,7 +76,10 @@ Java.perform(() => {
     menu.logger.info("主要按钮被点击");
     menu.toast("主要按钮被点击！");
     // 动态更新文本
-    menu.setComponentValue("dynamic_text", `动态文本：最后更新于 ${new Date().toLocaleTimeString()}`);
+    menu.setComponentValue(
+      "dynamic_text",
+      `动态文本：最后更新于 ${new Date().toLocaleTimeString()}`,
+    );
   });
   menu.addComponent(primaryButton, "basic");
 
@@ -96,7 +98,7 @@ Java.perform(() => {
   // ============================================
   // 标签页2: 表单组件 (Form Components)
   // ============================================
-  
+
   const formCategory = new Category("form_category", "表单组件");
   menu.addComponent(formCategory, "form");
 
@@ -106,18 +108,24 @@ Java.perform(() => {
     "",
     "用户名",
     "请输入用户名",
-    "输入用户名"
+    "输入用户名",
   );
   usernameInput.setOnValueChange((value: string) => {
     menu.logger.info(`用户名输入: ${value}`);
     menu.toast(`用户名设置为: ${value}`);
     // 更新显示文本
-    menu.setComponentValue("username_display", `当前用户名：<b>${value || "未设置"}</b>`);
+    menu.setComponentValue(
+      "username_display",
+      `当前用户名：<b>${value || "未设置"}</b>`,
+    );
   });
   menu.addComponent(usernameInput, "form");
 
   // 显示用户名的文本
-  const usernameDisplay = new Text("username_display", "当前用户名：<b>未设置</b>");
+  const usernameDisplay = new Text(
+    "username_display",
+    "当前用户名：<b>未设置</b>",
+  );
   menu.addComponent(usernameDisplay, "form");
 
   // TextInput - 密码输入
@@ -126,7 +134,7 @@ Java.perform(() => {
     "",
     "密码",
     "请输入密码",
-    "输入密码"
+    "输入密码",
   );
   passwordInput.setOnValueChange((value: string) => {
     menu.logger.info(`密码输入: ${value.length} 个字符`);
@@ -139,31 +147,34 @@ Java.perform(() => {
     "",
     "备注",
     "请输入备注信息...",
-    "输入备注"
+    "输入备注",
   );
   notesInput.setOnValueChange((value: string) => {
     const chars = value.length;
     const lines = value.split("\n").length;
     menu.setComponentValue(
       "notes_stats",
-      `备注统计：<br/>- 字符数: ${chars}<br/>- 行数: ${lines}`
+      `备注统计：<br/>- 字符数: ${chars}<br/>- 行数: ${lines}`,
     );
   });
   menu.addComponent(notesInput, "form");
 
   // 备注统计文本
-  const notesStats = new Text("notes_stats", "备注统计：<br/>- 字符数: 0<br/>- 行数: 0");
+  const notesStats = new Text(
+    "notes_stats",
+    "备注统计：<br/>- 字符数: 0<br/>- 行数: 0",
+  );
   menu.addComponent(notesStats, "form");
 
   // NumberInput - 年龄
   const ageInput = new NumberInput(
     "age",
     25,
-    0,  // 最小值
+    0, // 最小值
     120, // 最大值
     "年龄",
     "请输入年龄",
-    "输入年龄"
+    "输入年龄",
   );
   ageInput.setOnValueChange((value: number) => {
     menu.logger.info(`年龄设置为: ${value}`);
@@ -188,14 +199,14 @@ Java.perform(() => {
     100,
     "数量",
     "请输入数量",
-    "输入数量"
+    "输入数量",
   );
   quantityInput.setOnValueChange((value: number) => {
     const price = 99.99;
     const total = (value * price).toFixed(2);
     menu.setComponentValue(
       "total_price",
-      `单价: ¥${price}<br/>总计: ¥${total}`
+      `单价: ¥${price}<br/>总计: ¥${total}`,
     );
   });
   menu.addComponent(quantityInput, "form");
@@ -230,12 +241,15 @@ Java.perform(() => {
       { id: "travel", label: "旅行" },
       { id: "gaming", label: "游戏" },
     ],
-    ["reading"] // 初始选中阅读
+    ["reading"], // 初始选中阅读
   );
   hobbiesGroup.on("valueChanged", (values: any[]) => {
     menu.logger.info(`选中的爱好: ${JSON.stringify(values)}`);
     // menu.toast(`选中的爱好: ${values.join(", ")}`);
-    menu.setComponentValue("hobbies_display", `选中的爱好：<b>${values.map((v) => v.label).join(", ") || "无"}</b>`);
+    menu.setComponentValue(
+      "hobbies_display",
+      `选中的爱好：<b>${values.map((v) => v.label).join(", ") || "无"}</b>`,
+    );
   });
   menu.addComponent(hobbiesGroup, "form");
 
@@ -246,7 +260,7 @@ Java.perform(() => {
   // ============================================
   // 标签页3: 选择组件 (Selection Components)
   // ============================================
-  
+
   const selectionCategory = new Category("selection_category", "选择组件");
   menu.addComponent(selectionCategory, "selection");
 
@@ -261,7 +275,7 @@ Java.perform(() => {
       { lable: "杭州", code: "HZ" },
       { lable: "成都", code: "CD" },
     ],
-    0 // 默认选中第一个
+    0, // 默认选中第一个
   );
   citySelector.on("valueChanged", (value: any) => {
     menu.logger.info(`选择的城市: ${value.lable} (${value.code})`);
@@ -283,7 +297,7 @@ Java.perform(() => {
       { lable: "黄色", color: "#FFFF00" },
       { lable: "紫色", color: "#FF00FF" },
     ],
-    0
+    0,
   );
   colorSelector.on("valueChanged", (value: any) => {
     menu.logger.info(`选择的颜色: ${value.lable} (${value.color})`);
@@ -301,7 +315,7 @@ Java.perform(() => {
       { lable: "日本語", lang: "ja-JP" },
       { lable: "한국어", lang: "ko-KR" },
     ],
-    0
+    0,
   );
   languageSelector.on("valueChanged", (value: any) => {
     menu.logger.info(`选择的语言: ${value.lable}`);
@@ -313,10 +327,10 @@ Java.perform(() => {
   const volumeSlider = new Slider(
     "volume_slider",
     "音量控制",
-    0,   // 最小值
+    0, // 最小值
     100, // 最大值
-    50,  // 初始值
-    1    // 步进
+    50, // 初始值
+    1, // 步进
   );
   volumeSlider.on("valueChanged", (value: number) => {
     menu.logger.info(`音量: ${value}%`);
@@ -335,7 +349,7 @@ Java.perform(() => {
     0,
     100,
     75,
-    5
+    5,
   );
   brightnessSlider.on("valueChanged", (value: number) => {
     menu.logger.info(`亮度: ${value}%`);
@@ -344,7 +358,10 @@ Java.perform(() => {
   menu.addComponent(brightnessSlider, "selection");
 
   // 亮度显示文本
-  const brightnessDisplay = new Text("brightness_display", "当前亮度：<b>75%</b>");
+  const brightnessDisplay = new Text(
+    "brightness_display",
+    "当前亮度：<b>75%</b>",
+  );
   menu.addComponent(brightnessDisplay, "selection");
 
   // Slider - 进度控制
@@ -354,39 +371,46 @@ Java.perform(() => {
     0,
     1000,
     0,
-    10
+    10,
   );
   progressSlider.on("valueChanged", (value: number) => {
     menu.logger.info(`进度: ${value}`);
     const percentage = ((value / 1000) * 100).toFixed(1);
     menu.setComponentValue(
       "progress_display",
-      `当前进度：<b>${value}</b> / 1000 (${percentage}%)`
+      `当前进度：<b>${value}</b> / 1000 (${percentage}%)`,
     );
   });
   menu.addComponent(progressSlider, "selection");
 
   // 进度显示文本
-  const progressDisplay = new Text("progress_display", "当前进度：<b>0</b> / 1000 (0.0%)");
+  const progressDisplay = new Text(
+    "progress_display",
+    "当前进度：<b>0</b> / 1000 (0.0%)",
+  );
   menu.addComponent(progressDisplay, "selection");
 
   // ============================================
   // 标签页4: 布局组件 (Layout Components)
   // ============================================
-  
+
   const layoutCategory = new Category("layout_category", "布局组件");
   menu.addComponent(layoutCategory, "layout");
 
   // Collapsible - 用户设置（展开状态）
-  const userSettingsCollapsible = new Collapsible("user_settings", "用户设置", true);
-  
+  const userSettingsCollapsible = new Collapsible(
+    "user_settings",
+    "用户设置",
+    true,
+  );
+
   // 在 Collapsible 中添加组件
   const usernameInput2 = new TextInput(
     "username2",
     "admin",
     "用户名",
     "请输入用户名",
-    "修改用户名"
+    "修改用户名",
   );
   usernameInput2.setOnValueChange((value: string) => {
     menu.logger.info(`用户名修改: ${value}`);
@@ -398,7 +422,7 @@ Java.perform(() => {
     "admin@example.com",
     "邮箱",
     "请输入邮箱地址",
-    "修改邮箱"
+    "修改邮箱",
   );
   emailInput.setOnValueChange((value: string) => {
     menu.logger.info(`邮箱修改: ${value}`);
@@ -412,20 +436,24 @@ Java.perform(() => {
       { lable: "普通用户", role: "user" },
       { lable: "访客", role: "guest" },
     ],
-    0
+    0,
   );
 
   userSettingsCollapsible.addChildren([
     usernameInput2,
     emailInput,
-    roleSelector
+    roleSelector,
   ]);
-  
+
   menu.addComponent(userSettingsCollapsible, "layout");
 
   // Collapsible - 系统配置（折叠状态）
-  const systemConfigCollapsible = new Collapsible("system_config", "系统配置", false);
-  
+  const systemConfigCollapsible = new Collapsible(
+    "system_config",
+    "系统配置",
+    false,
+  );
+
   const logLevelSelector = new Selector(
     "log_level",
     [
@@ -434,9 +462,9 @@ Java.perform(() => {
       { lable: "警告 (WARN)", level: 2 },
       { lable: "错误 (ERROR)", level: 3 },
     ],
-    1
+    1,
   );
-  
+
   const cacheSizeInput = new NumberInput(
     "cache_size",
     100,
@@ -444,17 +472,17 @@ Java.perform(() => {
     1000,
     "缓存大小",
     "请输入缓存大小(MB)",
-    "设置缓存大小"
+    "设置缓存大小",
   );
-  
+
   const autoUpdateSwitch = new Switch("auto_update", "自动更新");
 
   systemConfigCollapsible.addChildren([
     logLevelSelector,
     cacheSizeInput,
-    autoUpdateSwitch
+    autoUpdateSwitch,
   ]);
-  
+
   menu.addComponent(systemConfigCollapsible, "layout");
 
   // ImageView - 显示图标
@@ -462,45 +490,42 @@ Java.perform(() => {
     "logo_image",
     iconBase64,
     400, // 宽度
-    400  // 高度
+    400, // 高度
   );
   menu.addComponent(imageView, "layout");
 
   // ============================================
   // 标签页5: 交互演示 (Interactive Demo)
   // ============================================
-  
+
   const interactiveCategory = new Category("interactive_category", "交互演示");
   menu.addComponent(interactiveCategory, "interactive");
 
   // 演示说明
   const demoDescription = new Text(
     "demo_description",
-    "此页面演示组件之间的交互和联动效果"
+    "此页面演示组件之间的交互和联动效果",
   );
   menu.addComponent(demoDescription, "interactive");
 
   // 复合组件：用户评分系统
-  const ratingCollapsible = new Collapsible("rating_system", "用户评分系统", true);
-  
+  const ratingCollapsible = new Collapsible(
+    "rating_system",
+    "用户评分系统",
+    true,
+  );
+
   // 用户名
   const raterInput = new TextInput(
     "rater_name",
     "",
     "评分人",
     "请输入姓名",
-    "输入姓名"
+    "输入姓名",
   );
-  
+
   // 评分滑块
-  const ratingSlider = new Slider(
-    "rating_slider",
-    "评分 (1-10)",
-    1,
-    10,
-    8,
-    1
-  );
+  const ratingSlider = new Slider("rating_slider", "评分 (1-10)", 1, 10, 8, 1);
   ratingSlider.on("valueChanged", (value: number) => {
     let ratingText = "";
     if (value <= 3) ratingText = "不满意";
@@ -509,10 +534,10 @@ Java.perform(() => {
     else ratingText = "非常满意";
     menu.setComponentValue("rating_display", `${ratingText}`);
   });
-  
+
   // 评分显示
   const ratingDisplay = new Text("rating_display", "满意");
-  
+
   // 评分标签
   const tagsGroup = new CheckBoxGroup(
     "rating_tags",
@@ -522,43 +547,42 @@ Java.perform(() => {
       { id: "easy_use", label: "易用" },
       { id: "beautiful", label: "美观" },
     ],
-    []
+    [],
   );
-  
+
   // 评论文本
   const commentInput = new TextInput(
     "rating_comment",
     "",
     "评论",
     "请输入您的评论...",
-    "添加评论"
+    "添加评论",
   );
-  
+
   // 提交按钮
   const submitRatingButton = new Button("submit_rating", "提交评分", "primary");
   submitRatingButton.setOnClick(() => {
     const rater = menu.getComponent<TextInput>("rater_name")?.getValue() || "";
     const rating = menu.getComponent<Slider>("rating_slider")?.getValue();
-    const tags = menu.getComponent<CheckBoxGroup>("rating_tags")?.getCheckedValues() || [];
-    const comment = menu.getComponent<TextInput>("rating_comment")?.getValue() || "";
-    
+    const tags =
+      menu.getComponent<CheckBoxGroup>("rating_tags")?.getCheckedValues() || [];
+    const comment =
+      menu.getComponent<TextInput>("rating_comment")?.getValue() || "";
+
     menu.logger.info("提交评分:", {
       rater,
       rating,
       tags,
-      comment
+      comment,
     });
-    
+
     menu.toast(
       `评分已提交！\n评分人: ${rater}\n得分: ${rating}\n标签: ${tags.join(", ")}\n评论: ${comment}`,
-      1
+      1,
     );
   });
 
-  const ratingDisplayText = new Text(
-    "rating_result",
-    "点击提交按钮查看结果"
-  );
+  const ratingDisplayText = new Text("rating_result", "点击提交按钮查看结果");
 
   ratingCollapsible.addChildren([
     raterInput,
@@ -567,14 +591,14 @@ Java.perform(() => {
     tagsGroup,
     commentInput,
     submitRatingButton,
-    ratingDisplayText
+    ratingDisplayText,
   ]);
-  
+
   menu.addComponent(ratingCollapsible, "interactive");
 
   // 复合组件：购物车
   const cartCollapsible = new Collapsible("shopping_cart", "购物车", false);
-  
+
   // 商品选择器
   const productSelector = new Selector(
     "product_selector",
@@ -585,14 +609,15 @@ Java.perform(() => {
       { lable: "显示器", price: 1999 },
       { lable: "耳机", price: 399 },
     ],
-    0
+    0,
   );
   productSelector.on("valueChanged", (value: any) => {
-    const quantity = menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
+    const quantity =
+      menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
     const total = (value.price * quantity).toFixed(2);
     menu.setComponentValue("cart_total", `总价: ¥${total}`);
   });
-  
+
   // 数量输入
   const quantitySelector = new NumberInput(
     "cart_quantity",
@@ -601,7 +626,7 @@ Java.perform(() => {
     10,
     "数量",
     "请输入数量",
-    "修改数量"
+    "修改数量",
   );
   quantitySelector.setOnValueChange((value: number) => {
     const product = menu.getComponent<Selector>("product_selector")?.getValue();
@@ -610,7 +635,7 @@ Java.perform(() => {
       menu.setComponentValue("cart_total", `总价: ¥${total}`);
     }
   });
-  
+
   // 运费选择器
   const shippingSelector = new Selector(
     "shipping_selector",
@@ -619,50 +644,54 @@ Java.perform(() => {
       { lable: "加急快递 (¥20)", fee: 20 },
       { lable: "顺丰速运 (¥25)", fee: 25 },
     ],
-    0
+    0,
   );
   shippingSelector.on("valueChanged", (value: any) => {
     const product = menu.getComponent<Selector>("product_selector")?.getValue();
-    const quantity = menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
+    const quantity =
+      menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
     const subtotal = product ? product.price * quantity : 0;
     const total = (subtotal + value.fee).toFixed(2);
     menu.setComponentValue(
       "cart_total",
-      `商品总价: ¥${subtotal.toFixed(2)}<br/>运费: ¥${value.fee}<br/>总计: ¥${total}`
+      `商品总价: ¥${subtotal.toFixed(2)}<br/>运费: ¥${value.fee}<br/>总计: ¥${total}`,
     );
   });
-  
+
   // 总价显示
   const cartTotal = new Text("cart_total", "总价: ¥5999");
   menu.addComponent(cartTotal, "interactive");
-  
+
   // 添加到购物车
   cartCollapsible.addChildren([
     productSelector,
     quantitySelector,
-    shippingSelector
+    shippingSelector,
   ]);
-  
+
   menu.addComponent(cartCollapsible, "interactive");
 
   // 添加到购物车按钮
   const addToCartButton = new Button("add_to_cart", "添加到购物车", "primary");
   addToCartButton.setOnClick(() => {
     const product = menu.getComponent<Selector>("product_selector")?.getValue();
-    const quantity = menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
-    const shipping = menu.getComponent<Selector>("shipping_selector")?.getValue();
-    
+    const quantity =
+      menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;
+    const shipping = menu
+      .getComponent<Selector>("shipping_selector")
+      ?.getValue();
+
     if (!product || !shipping) {
       menu.toast("请先选择商品和配送方式", 1);
       return;
     }
-    
+
     const subtotal = product.price * quantity;
     const total = subtotal + shipping.fee;
-    
+
     menu.toast(
       `已添加到购物车！\n商品: ${product.lable}\n数量: ${quantity}\n配送: ${shipping.lable}\n总计: ¥${total.toFixed(2)}`,
-      1
+      1,
     );
   });
   menu.addComponent(addToCartButton, "interactive");
@@ -670,7 +699,7 @@ Java.perform(() => {
   // ============================================
   // 全局事件监听示例
   // ============================================
-  
+
   menu.on("component:username:valueChanged", (value: string) => {
     menu.logger.info(`[全局监听] 用户名改变: ${value}`);
   });

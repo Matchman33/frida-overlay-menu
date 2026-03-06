@@ -32,7 +32,7 @@ export class FloatMenu {
   public options: FloatMenuOptions;
   private headerView: any; // 标题栏容器
   private iconView: any; // 图标容器
-  private uiComponents: Map<string, UIComponent> = new Map();
+  public uiComponents: Map<string, UIComponent> = new Map();
   private pendingComponents: Array<{
     id: string;
     component: UIComponent;
