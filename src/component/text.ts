@@ -4,11 +4,13 @@ import { UIComponent } from "./ui-components";
 
 export class TextView extends UIComponent {
   private content: string;
+  private size: number;
 
-  constructor(id: string, content: string) {
+  constructor(id: string, content: string, size: number = 16) {
     super(id);
     this.content = content;
     this.value = content;
+    this.size = size;
   }
 
   protected createView(context: any): void {
@@ -17,6 +19,8 @@ export class TextView extends UIComponent {
 
     this.view = TextView.$new(context);
     applyStyle(this.view, "text", this.menu.options.theme!);
+    this.view.setTextSize(this.size);
+
     this.view.setText(Html.fromHtml(this.content));
   }
 
