@@ -17,8 +17,6 @@ import { ImageView } from "./src/component/image";
 import { DarkNeonTheme } from "./src/component/style/theme";
 import { TextView } from "./src/component/text";
 
-
-
 Java.perform(() => {
   console.log(
     "Java runtime ready, creating floating menu with new components...",
@@ -35,7 +33,6 @@ Java.perform(() => {
     logMaxLines: 50,
     iconBase64: iconBase64,
     title: "这是我的易游",
-    showFooter: true,
     tabs: [
       { id: "controls", label: "控制台1" },
       { id: "inputs", label: "恭喜" },
@@ -44,8 +41,8 @@ Java.perform(() => {
       { id: "inputs1", label: "Inputs" },
       { id: "layout1", label: "Layout" },
     ],
-    activeTab: "inputs1",
-    showTabs: true,
+    // tabs: [],
+    // activeTab: "inputs1",
   };
 
   const menu = new FloatMenu(options);
