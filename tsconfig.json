@@ -2,15 +2,25 @@
   "compilerOptions": {
     "target": "es2020",
     "module": "commonjs",
+    "declaration": true,
     "allowJs": true,
-    "noEmit": true,
     "strict": true,
+    "rootDir": "./src",
+    "outDir": "./lib",
     "esModuleInterop": true,
     "moduleResolution": "node",
     "skipLibCheck": true,
     "removeComments": true
-  
-
   },
-  "exclude": ["example-compiled.js", "node_modules", "dist", "lib"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "example.js",
+    "example.ts",
+    "icon.ts",
+    "node_modules",
+    "dist",
+    "lib",
+    ".venv",
+    ".claude"
+  ]
 }

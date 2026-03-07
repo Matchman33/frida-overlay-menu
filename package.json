@@ -1,26 +1,23 @@
 {
-  "name": "frida-float-menu",
+  "name": "frida-overlay-menu",
   "version": "1.0.0",
-  "description": "A Frida library for creating interactive floating windows with UI components on Android",
+  "description": "借助frida调用Java Api绘制悬浮窗组件",
   "license": "MIT",
   "private": false,
-  "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "files": [
-    "src/**/*.ts",
-    "README.md",
-    "example.js"
+    "lib",
+    "README.md"
   ],
   "scripts": {
+    "build:lib": "tsc",
+    "build:example": "frida-compile example.ts -o example.js",
+    "prepublishOnly": "npm run build:lib",
     "dev": "frida-compile example.ts -o example.js -w",
     "frida": "frida -UF -l example.js",
-    "build": "frida-compile example.ts -o example.js",
-    "dev:demo": "frida-compile demo-new-components.ts -o demo-new-components-compiled.js -w",
-    "build:demo": "frida-compile demo-new-components.ts -o demo-new-components-compiled.js",
-    "frida:demo": "frida -UF -l demo-new-components-compiled.js",
-    "check": "tsc --noEmit",
-    "clean": "rm -f _agent.js example-compiled.js demo-new-components-compiled.js"
+    "check": "tsc --noEmit"
   },
   "keywords": [
     "frida",
