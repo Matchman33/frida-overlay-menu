@@ -38,7 +38,7 @@ export class CheckBoxGroup extends UIComponent {
     this.value = this.getCheckedValues();
   }
 
-  public setOnChangeHandler(
+  public onChangeHandler(
     handler: (
       value: CheckBoxOption[],
       item?: { id: string; checked: boolean },
@@ -47,7 +47,7 @@ export class CheckBoxGroup extends UIComponent {
     this.changeHandler = handler;
   }
 
-  public setOnValueChangeHandler(handler: (value: CheckBoxOption[]) => void) {
+  public onValueChangeHandler(handler: (value: CheckBoxOption[]) => void) {
     this.valueChangeHandler = handler;
   }
 

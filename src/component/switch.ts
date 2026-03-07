@@ -9,7 +9,7 @@ export class Switch extends UIComponent {
   private switchView: any;
   private labelView: any;
 
-  private setOnValueChange(handler: (vlaue: boolean) => void) {
+  public onValueChange(handler: (vlaue: boolean) => void) {
     this.handler = handler;
   }
 

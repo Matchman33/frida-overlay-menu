@@ -69,7 +69,7 @@ export class Button extends UIComponent {
   /**
    * Set click handler
    */
-  public setOnClick(handler: () => void): void {
+  public onClick(handler: () => void): void {
     this.handler = handler;
   }
 }

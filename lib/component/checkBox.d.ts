@@ -11,11 +11,11 @@ export declare class CheckBoxGroup extends UIComponent {
     private triggerText;
     private maxDisplayCount;
     constructor(id: string, options: CheckBoxOption[], initialChecked?: string[], _columns?: number);
-    setOnChangeHandler(handler: (value: CheckBoxOption[], item?: {
+    onChangeHandler(handler: (value: CheckBoxOption[], item?: {
         id: string;
         checked: boolean;
     }) => void): void;
-    setOnValueChangeHandler(handler: (value: CheckBoxOption[]) => void): void;
+    onValueChangeHandler(handler: (value: CheckBoxOption[]) => void): void;
     setMaxDisplayCount(n: number): void;
     protected createView(context: any): void;
     private openMultiSelectDialog;

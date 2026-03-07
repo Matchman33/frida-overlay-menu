@@ -4,7 +4,7 @@ export declare class Switch extends UIComponent {
     private handler?;
     private switchView;
     private labelView;
-    private setOnValueChange;
+    onValueChange(handler: (vlaue: boolean) => void): void;
     constructor(id: string, label: string, initialValue?: boolean);
     protected createView(context: any): void;
     protected updateView(): void;

@@ -6,7 +6,7 @@ export class Slider extends UIComponent {
   private max: number;
   private step: number;
   private label: string;
-  private handler?: any;
+  private handler?: (value: number) => void;
 
   constructor(
     id: string,
@@ -143,7 +143,7 @@ export class Slider extends UIComponent {
     seekBar.setOnSeekBarChangeListener(changeListener.$new());
   }
 
-  public setOnValueChange(handler: (value: number) => void) {
+  public onValueChange(handler: (value: number) => void) {
     this.handler = handler;
   }
 

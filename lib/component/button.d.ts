@@ -7,5 +7,5 @@ export declare class Button extends UIComponent {
     protected createView(context: any): void;
     protected updateView(): void;
     setLabel(label: string): void;
-    setOnClick(handler: () => void): void;
+    onClick(handler: () => void): void;
 }
