@@ -6,7 +6,7 @@ export declare class Selector extends UIComponent {
     constructor(id: string, items: {
         lable: string;
         [key: string]: any;
-    }[], selectedIndex?: number);
+    }[], selectedIndex?: number, handler?: (value: any) => {});
     getValue(): {
         lable: string;
         [key: string]: any;

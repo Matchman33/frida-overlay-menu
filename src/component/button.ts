@@ -4,12 +4,18 @@ import { UIComponent } from "./ui-components";
 
 export class Button extends UIComponent {
   private label: string;
-  private handler: (() => void) | null = null;
+  private handler?: () => void;
   private kind: "primary" | "danger" = "primary";
-  constructor(id: string, label: string, kind: "primary" | "danger" = "primary") {
+  constructor(
+    id: string,
+    label: string,
+    kind: "primary" | "danger" = "primary",
+    handler?: () => void,
+  ) {
     super(id);
     this.label = label;
     this.kind = kind;
+    this.handler = handler;
     this.value = null; // Buttons don't have a value
   }
 

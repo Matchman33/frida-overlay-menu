@@ -15,12 +15,14 @@ export class Slider extends UIComponent {
     max: number,
     initialValue: number = min,
     step: number = 1,
+    handler?: (value: number) => void,
   ) {
     super(id);
     this.label = label;
     this.min = min;
     this.max = max;
     this.step = step;
+    this.handler = handler;
     // Ensure initial value is within bounds and aligned to step
     this.value = this.clampToStep(initialValue);
   }

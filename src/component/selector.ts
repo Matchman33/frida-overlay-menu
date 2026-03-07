@@ -11,11 +11,13 @@ export class Selector extends UIComponent {
     id: string,
     items: { lable: string; [key: string]: any }[],
     selectedIndex: number = 0,
+    handler?: (value: any) => {},
   ) {
     super(id);
     this.items = items;
     this.selectedIndex = selectedIndex;
     this.value = items[selectedIndex];
+    this.handler = handler;
   }
 
   public getValue(): { lable: string; [key: string]: any } {

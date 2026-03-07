@@ -13,10 +13,11 @@ export class Switch extends UIComponent {
     this.handler = handler;
   }
 
-  constructor(id: string, label: string, initialValue: boolean = false) {
+  constructor(id: string, label: string, initialValue: boolean = false, handler?: (vlaue: boolean) => void) {
     super(id);
     this.label = label;
     this.value = initialValue;
+    this.handler = handler;
   }
 
   protected createView(context: any): void {
