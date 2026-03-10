@@ -6,6 +6,7 @@ export declare class NumberInput extends UIComponent {
     private max;
     private handler?;
     private title;
+    private isShowDialog;
     constructor(id: string, initialValue?: number, min?: number | null, max?: number | null, text?: string, hint?: string, title?: string);
     protected updateView(): void;
     getValue(): number;
@@ -23,6 +24,7 @@ export declare class TextInput extends UIComponent {
     private hint;
     private handler?;
     private title;
+    private isShowDialog;
     constructor(id: string, initialValue?: string, text?: string, hint?: string, title?: string);
     protected updateView(): void;
     protected createView(context: any): void;

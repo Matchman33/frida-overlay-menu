@@ -30,6 +30,6 @@ export declare class TabsView {
     private updateTabStyle;
     private refreshTabsUI;
     initializeTabs(): void;
-    private createTabContainer;
+    createTabContainer(): void;
 }
 export {};
