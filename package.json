@@ -4,14 +4,15 @@
   "description": "借助frida调用Java Api绘制悬浮窗组件",
   "license": "MIT",
   "private": false,
-  "type": "commonjs",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
   "files": [
     "lib",
     "README.md"
   ],
   "scripts": {
+    "dev": "frida-compile example.ts -o example.js -w",
     "build": "tsc",
     "prepublishOnly": "npm run build",
     "check": "tsc --noEmit"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@types/frida-gum": "^18.3.1",
     "@types/node": "^18.14.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "frida-compile": "^19.0.4"
   }
 }

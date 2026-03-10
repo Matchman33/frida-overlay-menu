@@ -30,13 +30,13 @@ Java.perform(() => {
     logMaxLines: 50,
     iconBase64: iconBase64,
     title: "综合测试用例",
-    tabs: [
-      { id: "basic", label: "基础组件" },
-      { id: "form", label: "表单组件" },
-      { id: "selection", label: "选择组件" },
-      { id: "layout", label: "布局组件" },
-      { id: "interactive", label: "交互演示" },
-    ],
+    // tabs: [
+    //   { id: "basic", label: "基础组件" },
+    //   { id: "form", label: "表单组件" },
+    //   { id: "selection", label: "选择组件" },
+    //   { id: "layout", label: "布局组件" },
+    //   { id: "interactive", label: "交互演示" },
+    // ],
   };
 
   const menu = new FloatMenu(options);
@@ -72,7 +72,7 @@ Java.perform(() => {
 
   // Primary Button
   const primaryButton = new Button("primary_button", "主要按钮", "primary");
-  primaryButton.setOnClick(() => {
+  primaryButton.onClick(() => {
     menu.logger.info("主要按钮被点击");
     menu.toast("主要按钮被点击！");
     // 动态更新文本
@@ -85,7 +85,7 @@ Java.perform(() => {
 
   // Danger Button
   const dangerButton = new Button("danger_button", "危险操作", "danger");
-  dangerButton.setOnClick(() => {
+  dangerButton.onClick(() => {
     menu.logger.info("危险按钮被点击");
     menu.toast("这是一个危险操作！", 1);
   });
@@ -561,7 +561,7 @@ Java.perform(() => {
 
   // 提交按钮
   const submitRatingButton = new Button("submit_rating", "提交评分", "primary");
-  submitRatingButton.setOnClick(() => {
+  submitRatingButton.onClick(() => {
     const rater = menu.getComponent<TextInput>("rater_name")?.getValue() || "";
     const rating = menu.getComponent<Slider>("rating_slider")?.getValue();
     const tags =
@@ -673,7 +673,7 @@ Java.perform(() => {
 
   // 添加到购物车按钮
   const addToCartButton = new Button("add_to_cart", "添加到购物车", "primary");
-  addToCartButton.setOnClick(() => {
+  addToCartButton.onClick(() => {
     const product = menu.getComponent<Selector>("product_selector")?.getValue();
     const quantity =
       menu.getComponent<NumberInput>("cart_quantity")?.getValue() || 1;

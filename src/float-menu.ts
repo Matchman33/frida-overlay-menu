@@ -360,6 +360,7 @@ export class FloatMenu {
     // tab bar
     // 不在构造函数中添加父组件是害怕父组件那时候还没初始化成功
     this.tabsView.createTabView(this.menuPanelView);
+    this.tabsView.createTabContainer();
 
     // --------------------
     // attach window

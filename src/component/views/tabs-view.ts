@@ -47,6 +47,9 @@ export class TabsView {
 
   public createTabView(parentView: any) {
     this.parentView = parentView;
+    if (this.tabs.size === 1 && this.tabs.has("default")) {
+      return;
+    }
     try {
       const LinearLayout = API.LinearLayout;
       const LinearLayoutParams = API.LinearLayoutParams;
@@ -182,8 +185,6 @@ export class TabsView {
       this.tabView = scrollView;
 
       parentView.addView(this.tabView);
-
-      this.createTabContainer();
     } catch (error) {
       this.logger.error("Failed to create tab view: " + error);
     }
@@ -342,7 +343,7 @@ export class TabsView {
   /**
    * 为每个 tab 创建一个 ScrollView 作为容器
    */
-  private createTabContainer(): void {
+  public createTabContainer(): void {
     const ScrollView = API.ScrollView;
     const LinearLayout = API.LinearLayout;
     const ViewGroupLayoutParams = API.ViewGroupLayoutParams;
@@ -406,9 +407,7 @@ export class TabsView {
         dp(this.context, 10),
       );
       tabContainer.setPadding(0, 0, 0, dp(this.context, 4)); // 你想保留底部间距就留
-
       sv.addView(tabContainer);
-
 
       // ✅ 显隐：切换的是 sv
       if (tabId === this.activeTabId) {
@@ -426,7 +425,6 @@ export class TabsView {
 
       tabRootsWrapper.addView(sv);
     }
-
     // ✅ activeTabId 没命中 -> 默认第一个
     if (
       (!this.currentContentContainer || !this.currentScrollView) &&
@@ -440,6 +438,8 @@ export class TabsView {
       this.currentContentContainer = firstTabInfo.container;
       this.currentScrollView = firstTabInfo.scrollView;
     }
+
+
 
     this.parentView.addView(tabRootsWrapper);
   }
