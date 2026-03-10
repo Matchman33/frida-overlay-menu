@@ -30,13 +30,13 @@ Java.perform(() => {
     logMaxLines: 50,
     iconBase64: iconBase64,
     title: "综合测试用例",
-    // tabs: [
-    //   { id: "basic", label: "基础组件" },
-    //   { id: "form", label: "表单组件" },
-    //   { id: "selection", label: "选择组件" },
-    //   { id: "layout", label: "布局组件" },
-    //   { id: "interactive", label: "交互演示" },
-    // ],
+    tabs: [
+      { id: "basic", label: "基础组件" },
+      { id: "form", label: "表单组件" },
+      { id: "selection", label: "选择组件" },
+      { id: "layout", label: "布局组件" },
+      { id: "interactive", label: "交互演示" },
+    ],
   };
 
   const menu = new FloatMenu(options);

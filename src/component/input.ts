@@ -9,6 +9,7 @@ export class NumberInput extends UIComponent {
   private max: number | null;
   private handler?: (value: number) => void;
   private title: string;
+  private isShowDialog: boolean = false;
 
   /**
    *
@@ -72,6 +73,8 @@ export class NumberInput extends UIComponent {
         implements: [API.OnClickListener],
         methods: {
           onClick: function (v: any) {
+            if (self.isShowDialog) return;
+            self.isShowDialog = true;
             self.showDialog(context);
           },
         },
@@ -139,6 +142,7 @@ export class NumberInput extends UIComponent {
           implements: [API.DialogInterfaceOnClickListener],
           methods: {
             onClick: function (_dialog: any, _which: number) {
+              self.isShowDialog = false;
               const text =
                 Java.cast(
                   input.getText(),
@@ -162,7 +166,21 @@ export class NumberInput extends UIComponent {
         }).$new(),
       );
 
-      builder.setNegativeButton(String.$new("取消"), null);
+      builder.setNegativeButton(
+        String.$new("取消"),
+        Java.registerClass({
+          name:
+            "com.frida.AlertTextInputCancel" +
+            Date.now() +
+            Math.random().toString(36).substring(6),
+          implements: [API.DialogInterfaceOnClickListener],
+          methods: {
+            onClick: function (dialog: any, which: number) {
+              self.isShowDialog = false;
+            },
+          },
+        }).$new(),
+      );
 
       const dialog = builder.create();
 
@@ -293,6 +311,7 @@ export class TextInput extends UIComponent {
   private hint: string;
   private handler?: (value: string) => void;
   private title: string;
+  private isShowDialog: boolean = false;
 
   /**
    *
@@ -345,6 +364,8 @@ export class TextInput extends UIComponent {
         implements: [API.OnClickListener],
         methods: {
           onClick: function (v: any) {
+            if (self.isShowDialog) return;
+            self.isShowDialog = true;
             self.showDialog(context);
           },
         },
@@ -405,6 +426,7 @@ export class TextInput extends UIComponent {
           implements: [API.DialogInterfaceOnClickListener],
           methods: {
             onClick: function (dialog: any, which: number) {
+              self.isShowDialog = false;
               const text =
                 Java.cast(
                   input.getText(),
@@ -420,7 +442,22 @@ export class TextInput extends UIComponent {
         }).$new(),
       );
 
-      builder.setNegativeButton(String.$new("取消"), null);
+      builder.setNegativeButton(
+        String.$new("取消"),
+        Java.registerClass({
+          name:
+            "com.frida.AlertTextInputCancel" +
+            Date.now() +
+            Math.random().toString(36).substring(6),
+          implements: [API.DialogInterfaceOnClickListener],
+          methods: {
+            onClick: function (dialog: any, which: number) {
+              self.isShowDialog = false;
+            },
+          },
+        }).$new(),
+      );
+
       const LayoutParams = API.LayoutParams;
       const dialog = builder.create();
 
