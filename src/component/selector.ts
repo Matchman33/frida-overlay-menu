@@ -29,22 +29,31 @@ export class Selector extends UIComponent {
     const Spinner = API.Spinner;
     const ArrayAdapter = API.ArrayAdapter;
     const String = API.JString;
-    const R_layout = API.R_layout;
     this.view = Spinner.$new(context);
     this.view.setBackgroundColor(0xff555555 | 0); // gray background
     // applyStyle(this.view, 'inputTrigger', this.menu.options.theme!);
 
+    const res = context.getResources();
+    const itemLayout = res.getIdentifier(
+      "simple_spinner_item",
+      "layout",
+      "android",
+    );
+    const dropLayout = res.getIdentifier(
+      "simple_spinner_dropdown_item",
+      "layout",
+      "android",
+    );
     // Convert JavaScript strings to Java strings
     const javaItems = this.items.map((item) => String.$new(item.lable));
-
+    console.log(javaItems, itemLayout);
     const adapter = ArrayAdapter.$new(
       context,
-      R_layout.simple_spinner_item.value,
-      Java.array("java.lang.CharSequence", javaItems),
+      itemLayout,
+      Java.array("java.lang.String", javaItems),
     );
-    adapter.setDropDownViewResource(
-      R_layout.simple_spinner_dropdown_item.value,
-    );
+    adapter.setDropDownViewResource(dropLayout);
+    console.log(adapter);
     this.view.setAdapter(adapter);
     this.view.setSelection(this.selectedIndex);
 
