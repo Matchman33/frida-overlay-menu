@@ -3,6 +3,7 @@ export declare class Selector extends UIComponent {
     private items;
     private selectedIndex;
     private handler?;
+    private context;
     constructor(id: string, items: {
         lable: string;
         [key: string]: any;
