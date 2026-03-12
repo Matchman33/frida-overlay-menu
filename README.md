@@ -130,7 +130,7 @@ const usernameInput = new TextInput(
     '输入用户名'    // 对话框标题
 );
 
-usernameInput.setOnValueChange((value: string) => {
+usernameInput.setonClick((value: string) => {
     console.log('用户名:', value);
     menu.toast(`用户名设置为: ${value}`);
 });
@@ -151,7 +151,7 @@ const ageInput = new NumberInput(
     '输入年龄'    // 对话框标题
 );
 
-ageInput.setOnValueChange((value: number) => {
+ageInput.setonClick((value: number) => {
     console.log('年龄:', value);
     // 根据年龄显示不同分类
     let category = value < 18 ? "未成年" : "成年人";
