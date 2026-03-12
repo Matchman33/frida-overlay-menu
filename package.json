@@ -17,6 +17,10 @@
     "prepublishOnly": "npm run build",
     "check": "tsc --noEmit"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Matchman33/frida-overlay-menu"
+  },
   "keywords": [
     "frida",
     "android",
