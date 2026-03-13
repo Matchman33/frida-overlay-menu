@@ -32,6 +32,9 @@ export class TabsView {
   public currentContentContainer: any;
   currentScrollView: any;
   private eventEmitter: EventEmitter = new EventEmitter();
+  tabScrollView: any;
+  tabIndicatorView: any;
+  private tabItemMap: Map<string, any> = new Map();
 
   constructor(
     context: any,
@@ -50,6 +53,7 @@ export class TabsView {
     if (this.tabs.size === 1 && this.tabs.has("default")) {
       return;
     }
+    this.tabItemMap.clear();
     try {
       const LinearLayout = API.LinearLayout;
       const LinearLayoutParams = API.LinearLayoutParams;
@@ -64,31 +68,44 @@ export class TabsView {
       const self = this;
 
       // ===== outer scroll view =====
-      const scrollView = HorizontalScrollView.$new(this.context);
-      scrollView.setHorizontalScrollBarEnabled(false);
-      scrollView.setScrollbarFadingEnabled(true);
-      scrollView.setFillViewport(true); // ✅ 让内容不足时也铺满，视觉更稳定
+      const outerScroll = HorizontalScrollView.$new(this.context);
+      outerScroll.setHorizontalScrollBarEnabled(false);
+      outerScroll.setFillViewport(false); // ✅ 不要把内容拉伸到满宽（保持 WRAP_CONTENT 便于滚动）
+      outerScroll.setPadding(
+        dp(this.context, 12),
+        dp(this.context, 6),
+        dp(this.context, 12),
+        dp(this.context, 6),
+      );
 
       const scrollLp = LinearLayoutParams.$new(
         ViewGroupLayoutParams.MATCH_PARENT.value,
         ViewGroupLayoutParams.WRAP_CONTENT.value,
       );
-      scrollView.setLayoutParams(scrollLp);
+      // 在 scrollLp 创建后加：
+      scrollLp.setMargins(0, 0, 0, dp(this.context, 10));
+      outerScroll.setLayoutParams(scrollLp);
+      try {
+        outerScroll.setClipToPadding(false);
+      } catch {}
+      try {
+        outerScroll.setClipChildren(false);
+      } catch {}
 
       // ✅ 胶囊条背景（暗底 + 圆角 + 描边）
-      const bg = GradientDrawable.$new();
-      bg.setCornerRadius(dp(this.context, 14));
-      bg.setColor(this.theme.colors.cardBg);
-      bg.setStroke(dp(this.context, 1), this.theme.colors.divider);
-      scrollView.setBackgroundDrawable(bg);
+      // const bg = GradientDrawable.$new();
+      // bg.setCornerRadius(dp(this.context, 14));
+      // bg.setColor(this.theme.colors.cardBg);
+      // bg.setStroke(dp(this.context, 1), this.theme.colors.divider);
+      // outerScroll.setBackgroundDrawable(bg);
 
       // 内边距（让 tab 不贴边）
-      scrollView.setPadding(
-        dp(this.context, 8),
-        dp(this.context, 6),
-        dp(this.context, 8),
-        dp(this.context, 6),
-      );
+      // outerScroll.setPadding(
+      //   dp(this.context, 8),
+      //   dp(this.context, 6),
+      //   dp(this.context, 8),
+      //   dp(this.context, 6),
+      // );
 
       // ===== inner container (tabs) =====
       const tabContainer = LinearLayout.$new(this.context);
@@ -99,9 +116,50 @@ export class TabsView {
           ViewGroupLayoutParams.WRAP_CONTENT.value,
         ),
       );
-
+      tabContainer.setPadding(0, 0, 0, 0);
       // 存引用，切换 tab 时更新样式
+      // this.tabContainer = tabContainer;
+      // outerScroll.addView(tabContainer);
+      // this.tabView = outerScroll;
       this.tabContainer = tabContainer;
+      outerScroll.addView(tabContainer);
+
+      // ===== tab bar root (VERTICAL): scroll + indicator =====
+      const tabBarRoot = LinearLayout.$new(this.context);
+      tabBarRoot.setOrientation(1); // VERTICAL
+      tabBarRoot.setLayoutParams(
+        LinearLayoutParams.$new(
+          ViewGroupLayoutParams.MATCH_PARENT.value,
+          ViewGroupLayoutParams.WRAP_CONTENT.value,
+        ),
+      );
+
+      // 记录 scroll 引用（后面 switchTab 需要滚动）
+      this.tabScrollView = outerScroll;
+
+      // ===== indicator =====
+      const indicator = API.View.$new(this.context);
+      const indicatorLp = LinearLayoutParams.$new(
+        dp(this.context, 0), // 初始宽度 0，第一次切换再算
+        dp(this.context, 2), // 高度 2dp
+      );
+      indicatorLp.setMargins(
+        dp(this.context, 12),
+        dp(this.context, 2),
+        dp(this.context, 12),
+        dp(this.context, 0),
+      );
+      indicator.setLayoutParams(indicatorLp);
+      // indicator.setBackgroundColor(this.theme.colors.accent); // 先用 accent（后面可换更亮）
+      indicator.setBackgroundColor(0xffffffff | 0);
+      this.tabIndicatorView = indicator;
+
+      // assemble
+      tabBarRoot.addView(outerScroll);
+      tabBarRoot.addView(indicator);
+
+      // 以后用 tabBarRoot 作为 tabView
+      this.tabView = tabBarRoot;
 
       // ===== helper: style tab item =====
       const styleTab = (tv: any, active: boolean) => {
@@ -111,23 +169,28 @@ export class TabsView {
         tv.setGravity(Gravity.CENTER.value);
         tv.setTextSize(2, this.theme.textSp.body);
         tv.setPadding(
-          dp(this.context, 12),
-          dp(this.context, 8),
-          dp(this.context, 12),
-          dp(this.context, 8),
+          dp(this.context, 14),
+          dp(this.context, 7),
+          dp(this.context, 14),
+          dp(this.context, 7),
         );
+        try {
+          tv.setMinHeight(dp(this.context, 34));
+        } catch {}
 
         // 背景：active -> 实心 accent；inactive -> 透明
         const d = GradientDrawable.$new();
-        d.setCornerRadius(dp(this.context, 12));
+        d.setCornerRadius(dp(this.context, 8));
         if (active) {
-          d.setColor(this.theme.colors.accent);
-          tv.setTextColor(0xffffffff | 0);
+          d.setColor(this.theme.colors.cardBg); // 先用卡片底色（后面再做选中条）
+          d.setStroke(
+            dp(this.context, 1),
+            this.theme.colors.accentStroke ?? this.theme.colors.divider,
+          );
+          tv.setTextColor(this.theme.colors.text);
         } else {
-          d.setColor(0x00000000);
+          d.setColor(0x00000000); // 或很浅的透明底
           tv.setTextColor(this.theme.colors.subText);
-          // 给未选中一个轻描边（可选，想更干净就删掉这行）
-          d.setStroke(dp(this.context, 1), this.theme.colors.divider);
         }
         tv.setBackgroundDrawable(d);
 
@@ -138,27 +201,112 @@ export class TabsView {
       };
 
       // ===== create each tab =====
+      // for (const [tabId, tabInfo] of this.tabs) {
+      //   const tabText = TextView.$new(this.context);
+      //   tabText.setText(JString.$new(tabInfo.label));
+
+      //   // layout params：紧凑间距
+      //   const btnLp = LinearLayoutParams.$new(
+      //     ViewGroupLayoutParams.WRAP_CONTENT.value,
+      //     ViewGroupLayoutParams.WRAP_CONTENT.value,
+      //   );
+
+      //   btnLp.setMargins(0, 0, 0, 0);
+      //   tabText.setLayoutParams(btnLp);
+
+      //   // 初始样式
+      //   styleTab(tabText, tabId === this.activeTabId);
+
+      //   // 点击切换
+      //   const tabClickListener = Java.registerClass({
+      //     name:
+      //       "com.example.TabClickListener" +
+      //       Date.now() +
+      //       Math.random().toString(36).substring(6) +
+      //       "_" +
+      //       tabId,
+      //     implements: [OnClickListener],
+      //     methods: {
+      //       onClick: function () {
+      //         self.switchTab(tabId);
+      //       },
+      //     },
+      //   });
+
+      //   tabText.setOnClickListener(tabClickListener.$new());
+      //   tabContainer.addView(tabText);
+      // }
+
+      // ===== create each tab =====
       for (const [tabId, tabInfo] of this.tabs) {
-        const tabText = TextView.$new(this.context);
-        tabText.setText(JString.$new(tabInfo.label));
+        // tab item root
+        const tabItem = LinearLayout.$new(this.context);
+        tabItem.setOrientation(1); // VERTICAL
+        tabItem.setGravity(Gravity.CENTER.value);
 
-        // layout params：紧凑间距
-        const btnLp = LinearLayoutParams.$new(
+        // ✅ 不要任何背景（避免“点了变色”）
+        try {
+          tabItem.setBackground(null);
+        } catch {}
+        try {
+          tabItem.setBackgroundColor(0x00000000);
+        } catch {}
+
+        // ✅ padding 决定 tab 的“大小”，不是 tab 之间的间距
+        tabItem.setPadding(
+          dp(this.context, 12),
+          dp(this.context, 6),
+          dp(this.context, 12),
+          dp(this.context, 0),
+        );
+
+        // ✅ 可选：保存引用，刷新更快更稳（推荐）
+        this.tabItemMap.set(tabId, tabItem);
+
+        // layout params：不加边距，想更紧就全 0
+        const itemLp = LinearLayoutParams.$new(
           ViewGroupLayoutParams.WRAP_CONTENT.value,
           ViewGroupLayoutParams.WRAP_CONTENT.value,
         );
-        btnLp.setMargins(
-          dp(this.context, 6),
-          dp(this.context, 2),
-          dp(this.context, 6),
+        itemLp.setMargins(0, 0, 0, 0);
+        tabItem.setLayoutParams(itemLp);
+
+        // label
+        const label = TextView.$new(this.context);
+        label.setText(JString.$new(tabInfo.label));
+        label.setSingleLine(true);
+        label.setAllCaps(false);
+        label.setTextSize(2, this.theme.textSp.body);
+        label.setGravity(Gravity.CENTER.value);
+
+        // ✅ 不要背景
+        try {
+          label.setBackground(null);
+        } catch {
+          try {
+            label.setBackgroundColor(0x00000000);
+          } catch {}
+        }
+
+        // underline (蓝条)
+        const underline = API.View.$new(this.context);
+        const ulLp = LinearLayoutParams.$new(
+          ViewGroupLayoutParams.MATCH_PARENT.value,
           dp(this.context, 2),
         );
-        tabText.setLayoutParams(btnLp);
+        ulLp.setMargins(0, dp(this.context, 6), 0, 0);
+        underline.setLayoutParams(ulLp);
+        underline.setBackgroundColor(this.theme.colors.accent); // ✅ 蓝条
+        // 默认先隐藏，active 再显示
+        underline.setVisibility(API.View.GONE.value);
 
-        // 初始样式
-        styleTab(tabText, tabId === this.activeTabId);
+        tabItem.addView(label);
+        tabItem.addView(underline);
 
-        // 点击切换
+        // 初始样式（只改字体色 + 蓝条显示）
+        this.updateTabStyle(tabItem, tabId === this.activeTabId);
+
+        // 点击切换：监听挂在 tabItem 上（点击区域更大）
         const tabClickListener = Java.registerClass({
           name:
             "com.example.TabClickListener" +
@@ -174,53 +322,46 @@ export class TabsView {
           },
         });
 
-        tabText.setOnClickListener(tabClickListener.$new());
-        tabContainer.addView(tabText);
+        tabItem.setOnClickListener(tabClickListener.$new());
+        tabContainer.addView(tabItem);
       }
-
-      // ✅ 把 tabs 放进 scrollView
-      scrollView.addView(tabContainer);
-
-      // ✅ 对外暴露
-      this.tabView = scrollView;
-
+      // this.tabView = outerScroll;
       parentView.addView(this.tabView);
+      // Java.scheduleOnMainThread(() =>
+      //   this.updateTabIndicator(this.activeTabId),
+      // );
     } catch (error) {
       this.logger.error("Failed to create tab view: " + error);
     }
   }
+
   private switchTab(tabId: string): void {
     if (!this.tabs.has(tabId) || tabId === this.activeTabId) return;
 
     const oldTabId = this.activeTabId;
     this.activeTabId = tabId;
-    this.refreshTabsUI();
-
     Java.scheduleOnMainThread(() => {
       try {
         const View = API.View;
 
         for (const [id, tabInfo] of this.tabs) {
-          const root = tabInfo.root; // ✅ 每个 tab 的 ScrollView
+          const root = tabInfo.root;
           if (!root) continue;
 
           if (id === tabId) {
             root.setVisibility(View.VISIBLE.value);
-            this.currentContentContainer = tabInfo.container; // ✅ LinearLayout
-            this.currentScrollView = tabInfo.scrollView; // ✅ 当前 tab 的 ScrollView
+            this.currentContentContainer = tabInfo.container;
+            this.currentScrollView = tabInfo.scrollView;
           } else {
             root.setVisibility(View.GONE.value);
           }
         }
 
-        if (this.tabContainer) {
-          const tabIds = Array.from(this.tabs.keys());
-          const childCount = this.tabContainer.getChildCount();
-          for (let i = 0; i < childCount && i < tabIds.length; i++) {
-            const tv = Java.cast(this.tabContainer.getChildAt(i), API.TextView);
-            this.updateTabStyle(tv, tabIds[i] === tabId);
-          }
-        }
+        // ✅ 关键：UI 线程里刷新 tab 样式（underline/文字颜色）
+        this.refreshTabsUI();
+
+        // ✅ 如果你还保留全局 indicator，就在 UI 线程里更新
+        // if (this.updateTabIndicator) this.updateTabIndicator(tabId);
 
         this.eventEmitter.emit("tabChanged", tabId, oldTabId);
       } catch (error) {
@@ -228,84 +369,205 @@ export class TabsView {
       }
     });
   }
-  private updateTabStyle(button: any, isActive: boolean) {
-    const GradientDrawable = API.GradientDrawable;
-
-    // dp helper（如果当前文件里没有 dp(context, x)，用你已有的那个）
-    const ctx = button.getContext();
-
-    const radius = dp(ctx, 12); // 胶囊圆角
-    const strokeW = dp(ctx, 1);
-    const padH = dp(ctx, 12);
-    const padV = dp(ctx, 8);
-
-    // 基础字体/内边距（避免每处都散落 setTextSize）
+  private updateTabStyle(tabItem: any, isActive: boolean) {
     try {
-      button.setAllCaps(false);
-    } catch (e) {}
-    button.setSingleLine(true);
-    button.setTextSize(2, this.theme!.textSp.body);
-    button.setPadding(padH, padV, padH, padV);
+      const View = API.View;
+      const TextView = API.TextView;
 
-    // 背景
-    const drawable = GradientDrawable.$new();
-    drawable.setCornerRadius(radius);
+      const label = Java.cast(tabItem.getChildAt(0), TextView);
+      const underline = tabItem.getChildAt(1);
 
-    if (isActive) {
-      // ✅ 激活：accent 实心 + 白字
-      drawable.setColor(this.theme!.colors.accent);
-      button.setTextColor(0xffffffff | 0);
-      try {
-        button.setTypeface(null, 1); // bold
-      } catch (e) {}
-    } else {
-      // ✅ 未激活：透明底 + divider 描边 + 次级文字色
-      drawable.setColor(0x00000000);
-      drawable.setStroke(strokeW, this.theme!.colors.divider);
-      button.setTextColor(this.theme!.colors.subText);
-      try {
-        button.setTypeface(null, 0);
-      } catch (e) {}
+      // ✅ 只做状态差异更新：文字颜色 + 蓝条显隐
+      if (isActive) {
+        label.setTextColor(this.theme!.colors.text);
+        try {
+          label.setTypeface(null, 1);
+        } catch {}
+        underline.setVisibility(View.VISIBLE.value);
+      } else {
+        label.setTextColor(this.theme!.colors.subText);
+        try {
+          label.setTypeface(null, 0);
+        } catch {}
+        underline.setVisibility(View.GONE.value);
+      }
+    } catch (e) {
+      Logger.instance.error(e);
     }
-
-    button.setBackgroundDrawable(drawable);
   }
+
+  private updateTabIndicator(activeTabId: string): void {
+    try {
+      if (!this.tabContainer || !this.tabIndicatorView || !this.tabScrollView)
+        return;
+
+      const tabIds = Array.from(this.tabs.keys());
+      const idx = tabIds.indexOf(activeTabId);
+      if (idx < 0) return;
+
+      const child = this.tabContainer.getChildAt(idx);
+      if (!child) return;
+
+      const indicator = this.tabIndicatorView;
+      const scroll = this.tabScrollView;
+
+      // ✅ 一定要等布局完成后再算 left/width
+      scroll.post(
+        Java.registerClass({
+          name:
+            "TabIndicatorPost_" +
+            Date.now() +
+            Math.random().toString(36).slice(2),
+          implements: [Java.use("java.lang.Runnable")],
+          methods: {
+            run: () => {
+              try {
+                const width = child.getWidth();
+                const leftInContainer = child.getLeft();
+
+                const scrollX = scroll.getScrollX();
+                const padL = scroll.getPaddingLeft();
+
+                const lp = indicator.getLayoutParams();
+                lp.width = width;
+                lp.leftMargin = padL + leftInContainer - scrollX;
+                indicator.setLayoutParams(lp);
+              } catch {}
+            },
+          },
+        }).$new(),
+      );
+    } catch (e) {}
+  }
+  // private updateTabIndicator(activeTabId: string): void {
+  //   try {
+  //     if (!this.tabContainer || !this.tabIndicatorView) return;
+
+  //     const tabIds = Array.from(this.tabs.keys());
+  //     const idx = tabIds.indexOf(activeTabId);
+  //     if (idx < 0) return;
+
+  //     const child = this.tabContainer.getChildAt(idx);
+  //     if (!child) return;
+
+  //     // 指示线宽度 = tab 按钮宽度；位置 = tab 按钮 left
+  //     const left = child.getLeft();
+  //     const width = child.getWidth();
+
+  //     const lp = this.tabIndicatorView.getLayoutParams();
+  //     lp.width = width;
+
+  //     // LinearLayoutParams 才有 setMargins（保险写法：直接写 leftMargin）
+  //     try {
+  //       lp.leftMargin = left + dp(this.context, 12); // +indicator 原本左右 margin
+  //     } catch {}
+
+  //     this.tabIndicatorView.setLayoutParams(lp);
+
+  //     // // 让选中 tab 滚到可见（偏左一点即可）
+  //     // if (this.tabScrollView) {
+  //     //   const scroll = this.tabScrollView;
+  //     //   scroll.post(
+  //     //     Java.registerClass({
+  //     //       name:
+  //     //         "TabScrollTo_" + Date.now() + Math.random().toString(36).slice(2),
+  //     //       implements: [Java.use("java.lang.Runnable")],
+  //     //       methods: {
+  //     //         run: () => {
+  //     //           try {
+  //     //             scroll.smoothScrollTo(
+  //     //               Math.max(0, left - dp(this.context, 24)),
+  //     //               0,
+  //     //             );
+  //     //           } catch {}
+  //     //         },
+  //     //       },
+  //     //     }).$new(),
+  //     //   );
+  //     // }
+  //   } catch (e) {}
+  // }
+  // private refreshTabsUI(): void {
+  //   try {
+  //     if (!this.tabContainer) return;
+
+  //     const GradientDrawable = API.GradientDrawable;
+  //     const count = this.tabContainer.getChildCount();
+
+  //     // tabs 的遍历顺序和 child 顺序一致
+  //     const tabIds = Array.from(this.tabs.keys());
+
+  //     for (let i = 0; i < count; i++) {
+  //       const tv = this.tabContainer.getChildAt(i);
+  //       const tabId = tabIds[i];
+  //       // const active = tabId === this.activeTabId;
+  //       this.updateTabStyle(tv, tabId === this.activeTabId);
+  //       // const d = GradientDrawable.$new();
+  //       // d.setCornerRadius(dp(this.context, 8)); // ✅ 小圆角：像卡片标签，不是胶囊按钮
+
+  //       // if (active) {
+  //       //   // ✅ 选中：卡片底 + 高亮描边（不要整块 accent 实心）
+  //       //   d.setColor(this.theme!.colors.cardBg);
+  //       //   d.setStroke(
+  //       //     dp(this.context, 1),
+  //       //     this.theme!.colors.accentStroke ?? this.theme!.colors.divider,
+  //       //   );
+  //       //   tv.setTextColor(this.theme!.colors.text);
+  //       //   try {
+  //       //     tv.setTypeface(null, 1);
+  //       //   } catch {}
+  //       // } else {
+  //       //   // ✅ 未选中：透明/很弱底
+  //       //   d.setColor(0x00000000);
+  //       //   d.setStroke(dp(this.context, 1), this.theme!.colors.divider);
+  //       //   tv.setTextColor(this.theme!.colors.subText);
+  //       //   try {
+  //       //     tv.setTypeface(null, 0);
+  //       //   } catch {}
+  //       // }
+  //       // tv.setBackgroundDrawable(d);
+  //     }
+  //   } catch (e) {}
+  // }
+
+  // private refreshTabsUI(): void {
+  //   try {
+  //     if (!this.tabContainer) return;
+
+  //     const count = this.tabContainer.getChildCount();
+  //     const tabIds = Array.from(this.tabs.keys());
+  //     for (let i = 0; i < count; i++) {
+  //       const tv = this.tabContainer.getChildAt(i);
+  //       this.updateTabStyle(tv, tabIds[i] === this.activeTabId);
+  //     }
+  //   } catch (e) {}
+  // }
+  // private refreshTabsUI(): void {
+  //   try {
+  //     if (!this.tabContainer) return;
+
+  //     const count = this.tabContainer.getChildCount();
+  //     const tabIds = Array.from(this.tabs.keys());
+
+  //     for (let i = 0; i < count; i++) {
+  //       const tabItem = this.tabContainer.getChildAt(i);
+  //       this.updateTabStyle(tabItem, tabIds[i] === this.activeTabId);
+  //     }
+  //   } catch (e) {
+  //     Logger.instance.error(e);
+  //   }
+  // }
+
   private refreshTabsUI(): void {
     try {
-      if (!this.tabContainer) return;
-
-      const GradientDrawable = API.GradientDrawable;
-      const count = this.tabContainer.getChildCount();
-
-      // tabs 的遍历顺序和 child 顺序一致
-      const tabIds = Array.from(this.tabs.keys());
-
-      for (let i = 0; i < count; i++) {
-        const tv = this.tabContainer.getChildAt(i);
-        const tabId = tabIds[i];
-        const active = tabId === this.activeTabId;
-
-        const d = GradientDrawable.$new();
-        d.setCornerRadius(dp(this.context, 12));
-        if (active) {
-          d.setColor(this.theme!.colors.accent);
-          tv.setTextColor(0xffffffff | 0);
-          try {
-            tv.setTypeface(null, 1);
-          } catch (e) {}
-        } else {
-          d.setColor(0x00000000);
-          d.setStroke(dp(this.context, 1), this.theme!.colors.divider);
-          tv.setTextColor(this.theme!.colors.subText);
-          try {
-            tv.setTypeface(null, 0);
-          } catch (e) {}
-        }
-        tv.setBackgroundDrawable(d);
+      if (!this.tabItemMap) return;
+      for (const [tabId, tabItem] of this.tabItemMap) {
+        this.updateTabStyle(tabItem, tabId === this.activeTabId);
       }
-    } catch (e) {}
+    } catch (e) {
+      Logger.instance.error(e);
+    }
   }
-
   /**
    * Initialize tabs from options
    */
@@ -360,7 +622,9 @@ export class TabsView {
       ),
     );
     if (!this.tabs || this.tabs.size === 0) {
-      Logger.instance.warn("[FloatMenu] tabs is empty, tab container will be blank.");
+      Logger.instance.warn(
+        "[FloatMenu] tabs is empty, tab container will be blank.",
+      );
     }
 
     let firstTabId: string | null = null;
@@ -400,13 +664,20 @@ export class TabsView {
       );
 
       // ✅ padding 建议放内容容器上（避免 wrapper padding 叠加）
-      tabContainer.setPadding(
-        dp(this.context, 10),
-        dp(this.context, 10),
-        dp(this.context, 10),
-        dp(this.context, 10),
-      );
-      tabContainer.setPadding(0, 0, 0, dp(this.context, 4)); // 你想保留底部间距就留
+      // tabContainer.setPadding(
+      //   dp(this.context, 10),
+      //   dp(this.context, 10),
+      //   dp(this.context, 10),
+      //   dp(this.context, 10),
+      // );
+      // // tabContainer.setPadding(0, 0, 0, dp(this.context, 4)); // 你想保留底部间距就留
+      // // ✅ 统一内容区留白（更像截图）
+      // tabContainer.setPadding(
+      //   dp(this.context, 14),
+      //   dp(this.context, 14),
+      //   dp(this.context, 14),
+      //   dp(this.context, 18),
+      // );
       sv.addView(tabContainer);
 
       // ✅ 显隐：切换的是 sv
@@ -438,8 +709,6 @@ export class TabsView {
       this.currentContentContainer = firstTabInfo.container;
       this.currentScrollView = firstTabInfo.scrollView;
     }
-
-
 
     this.parentView.addView(tabRootsWrapper);
   }

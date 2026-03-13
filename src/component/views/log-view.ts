@@ -2,7 +2,7 @@ import { API } from "../../api";
 import { Logger, LogLevel } from "../../logger";
 import { dp } from "../style/style";
 
-export class LogView {
+export class LogViewWindow {
   private context: any;
   private logDrawerPanel: any;
   public isLogDrawerOpen: boolean = false;

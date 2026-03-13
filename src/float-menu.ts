@@ -4,7 +4,7 @@ import { Logger, LogLevel } from "./logger";
 import { API } from "./api";
 import { dp, applyStyle } from "./component/style/style";
 import { DarkNeonTheme, Theme } from "./component/style/theme";
-import { LogView as LogViewWindow } from "./component/views/log-view";
+import { LogViewWindow } from "./component/views/log-view";
 import { logicalToWindow, windowToLogical } from "./utils";
 import { TabsView } from "./component/views/tabs-view";
 
@@ -546,7 +546,9 @@ export class FloatMenu {
           this.eventEmitter.emit("component:" + id + ":click", data);
         });
       } catch (error) {
-        Logger.instance.error(`Failed to add pending component ${id}: ` + error);
+        Logger.instance.error(
+          `Failed to add pending component ${id}: ` + error,
+        );
       }
     }
     // Clear pending components
@@ -788,11 +790,36 @@ export class FloatMenu {
         const lp = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
         btn.setLayoutParams(lp);
 
-        // 背景：透明 + 描边 + 圆角
+
+        // 轻量按压反馈：按下变暗，抬起恢复
+        btn.setOnTouchListener(
+          Java.registerClass({
+            name:
+              "HeaderBtnTouch_" +
+              Date.now() +
+              Math.random().toString(36).slice(2),
+            implements: [Java.use("android.view.View$OnTouchListener")],
+            methods: {
+              onTouch: function (v: any, ev: any) {
+                try {
+                  const MotionEvent = Java.use("android.view.MotionEvent");
+                  const action = ev.getAction();
+                  if (action === MotionEvent.ACTION_DOWN.value) v.setAlpha(0.6);
+                  else if (
+                    action === MotionEvent.ACTION_UP.value ||
+                    action === MotionEvent.ACTION_CANCEL.value
+                  )
+                    v.setAlpha(1.0);
+                } catch {}
+                return false; // 不吃掉事件，保证 onClick 正常
+              },
+            },
+          }).$new(),
+        );
+        // 背景：透明 + 轻微圆角（不描边，不像按钮格子）
         const d = GradientDrawable.$new();
         d.setCornerRadius(BTN_RADIUS);
-        d.setColor(0x00000000);
-        d.setStroke(dp(context, 1), this.options.theme!.colors.divider);
+        d.setColor(0x00000000); // 默认透明
         btn.setBackgroundDrawable(d);
 
         // 点击区域 padding（主要靠 BTN_SIZE）
@@ -806,42 +833,98 @@ export class FloatMenu {
       };
 
       // ===== header container =====
-      this.headerView = LinearLayout.$new(context);
-      this.headerView.setOrientation(0); // HORIZONTAL
-      this.headerView.setGravity(Gravity.CENTER_VERTICAL.value);
+
 
       const headerLp = LinearLayoutParams.$new(
         LinearLayoutParams.MATCH_PARENT.value,
         LinearLayoutParams.WRAP_CONTENT.value,
       );
-      this.headerView.setLayoutParams(headerLp);
+      // headerRoot：竖向（行 + 分割线）
+      const headerRoot = LinearLayout.$new(context);
+      headerRoot.setOrientation(1); // VERTICAL
+      headerRoot.setLayoutParams(headerLp);
 
-      this.headerView.setPadding(PAD_H, PAD_V, PAD_H, PAD_V);
+      // headerRow：横向（真正的内容）
+      const headerRow = LinearLayout.$new(context);
+      headerRow.setOrientation(0);
+      headerRow.setGravity(Gravity.CENTER_VERTICAL.value);
+      headerRow.setPadding(PAD_H, PAD_V, PAD_H, PAD_V);
 
-      // Header 背景：暗色圆角卡条
-      const bg = GradientDrawable.$new();
-      bg.setCornerRadius(dp(context, 14));
-      bg.setColor(this.options.theme!.colors.cardBg);
-      bg.setStroke(dp(context, 1), this.options.theme!.colors.divider);
-      this.headerView.setBackgroundDrawable(bg);
+      // 用 headerRow 作为拖拽区域
+      this.headerView = headerRow;
 
-      // ===== title (LEFT) =====
+      try {
+        this.headerView.setBackgroundColor(0x00000000);
+      } catch {}
+
+      // 在 headerView 下方加一条分割线（更像截图）
+      const divider = API.View.$new(context);
+      const divLp = LinearLayoutParams.$new(
+        LinearLayoutParams.MATCH_PARENT.value,
+        dp(context, 1),
+      );
+      divider.setLayoutParams(divLp);
+      divider.setBackgroundColor(this.options.theme!.colors.divider);
+
+      // ===== left box: icon + title + version badge =====
+      const leftBox = LinearLayout.$new(context);
+      leftBox.setOrientation(0);
+      leftBox.setGravity(Gravity.CENTER_VERTICAL.value);
+
+      const leftLp = LinearLayoutParams.$new(
+        0,
+        LinearLayoutParams.WRAP_CONTENT.value,
+        1.0, // 占满左侧
+      );
+      leftBox.setLayoutParams(leftLp);
+
+      // 小图标（用字符替代，避免字体缺失；你也可以换成 "≡" 或 "▣"）
+      const icon = TextView.$new(context);
+      icon.setText(JString.$new("▸"));
+      icon.setTextColor(this.options.theme!.colors.accent);
+      icon.setTextSize(2, this.options.theme!.textSp.title);
+      icon.setPadding(0, 0, dp(context, 8), 0);
+
+      // 标题
       const titleView = TextView.$new(context);
       titleView.setText(JString.$new(this.options.title));
       titleView.setSingleLine(true);
-      titleView.setGravity(Gravity.CENTER_VERTICAL.value);
-      titleView.setTypeface(null, 1); // bold
+      titleView.setTypeface(null, 1);
       titleView.setTextColor(this.options.theme!.colors.text);
       titleView.setTextSize(2, this.options.theme!.textSp.title);
 
-      // 标题占据左侧剩余空间
-      const titleLp = LinearLayoutParams.$new(
-        0,
-        LinearLayoutParams.WRAP_CONTENT.value,
-        1.0,
+      // 版本号 badge（小标签）
+      const ver = TextView.$new(context);
+      ver.setText(JString.$new("v2.4.0")); // 这里换成你的版本变量
+      ver.setSingleLine(true);
+      ver.setTextSize(2, this.options.theme!.textSp.caption);
+      ver.setTextColor(this.options.theme!.colors.accent);
+
+      // badge 背景：小圆角、弱底色
+      const badgeBg = GradientDrawable.$new();
+      badgeBg.setCornerRadius(dp(context, 8));
+      badgeBg.setColor(0x22000000); // 透明黑（你也可以用 accentSoft）
+      badgeBg.setStroke(dp(context, 1), this.options.theme!.colors.divider);
+      ver.setBackgroundDrawable(badgeBg);
+      ver.setPadding(
+        dp(context, 8),
+        dp(context, 4),
+        dp(context, 8),
+        dp(context, 4),
       );
-      titleView.setLayoutParams(titleLp);
-      titleView.setPadding(0, dp(context, 2), dp(context, 10), dp(context, 2));
+
+      const verLp = LinearLayoutParams.$new(
+        LinearLayoutParams.WRAP_CONTENT.value,
+        LinearLayoutParams.WRAP_CONTENT.value,
+      );
+      verLp.setMargins(dp(context, 10), 0, 0, 0);
+      ver.setLayoutParams(verLp);
+
+      // assemble left box
+      leftBox.addView(icon);
+      leftBox.addView(titleView);
+      leftBox.addView(ver);
+
 
       // ===== right buttons container =====
       const rightBox = LinearLayout.$new(context);
@@ -916,21 +999,39 @@ export class FloatMenu {
       );
 
       // 给右侧两个按钮一点间距
-      const lpBtn = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
-      lpBtn.setMargins(0, 0, dp(context, 8), 0);
-      logButton.setLayoutParams(lpBtn);
-      minButton.setLayoutParams(lpBtn);
+      // const lpBtn = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
+      // lpBtn.setMargins(0, 0, dp(context, 4), 0);
+      // logButton.setLayoutParams(lpBtn);
+      // minButton.setLayoutParams(lpBtn);
+
+      const lp1 = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
+      lp1.setMargins(0, 0, dp(context, 4), 0);
+      logButton.setLayoutParams(lp1);
+
+      const lp2 = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
+      lp2.setMargins(0, 0, dp(context, 4), 0);
+      minButton.setLayoutParams(lp2);
+
+      // 最后一个不加右边距
+      const lp3 = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
+      lp3.setMargins(0, 0, 0, 0);
+      hideButton.setLayoutParams(lp3);
+
 
       rightBox.addView(logButton);
       rightBox.addView(minButton);
       rightBox.addView(hideButton);
-
       // ===== assemble =====
 
-      this.headerView.addView(titleView);
-      this.headerView.addView(rightBox);
+      // this.headerView.addView(titleView);
+      // this.headerView.addView(rightBox);
+      headerRoot.addView(headerRow);
+      headerRoot.addView(divider);
+      headerRow.addView(leftBox);
+      headerRow.addView(rightBox)
+      this.menuPanelView.addView(headerRoot);
 
-      this.menuPanelView.addView(this.headerView);
+      // this.menuPanelView.addView(this.headerView);
 
       // drag support
       this.addDragListener(
