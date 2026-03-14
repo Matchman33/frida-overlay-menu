@@ -15,11 +15,11 @@ export class LogViewWindow {
 
   private isCreated: boolean = false;
   private isCreating: boolean = false;
+  private isAttached: boolean = false;
 
-  // 这里必须默认 false，不然第一次点击会被当成“已显示”而走关闭逻辑
   public isLogWindowVisible: boolean = false;
 
-  private _loggerUnsub: any;
+  private _loggerUnsub: any = null;
   private _logMaxLinesCache: number = 0;
   private _logRing: string[] | null = null;
   private _logHead: number = 0;
@@ -63,7 +63,10 @@ export class LogViewWindow {
       this._logSize = 0;
       this._logPending.length = 0;
       this._logFlushScheduled = false;
-      this.logView.setText(API.JString.$new(""));
+
+      try {
+        this.logView.setText(API.JString.$new(""));
+      } catch {}
     }
 
     const t = new Date(ts).toTimeString().substring(0, 8);
@@ -96,26 +99,24 @@ export class LogViewWindow {
         if (i !== this._logSize - 1) out += "\n";
       }
 
-      this.logView.setText(API.JString.$new(out));
+      try {
+        this.logView.setText(API.JString.$new(out));
+      } catch (e) {
+        Logger.instance.error("flush log text failed: " + e);
+      }
     });
   }
 
   private buildWindowType(): number {
     const LayoutParams = API.LayoutParams;
-    const BuildVERSION = API.BuildVERSION;
-
-    try {
-      if (BuildVERSION.SDK_INT.value >= 26) {
-        return LayoutParams.TYPE_APPLICATION_OVERLAY.value;
-      }
-    } catch {}
-
-    return LayoutParams.TYPE_PHONE.value;
+    return LayoutParams.TYPE_APPLICATION_PANEL.value;
   }
 
-  public createWindowOnce(): void {
+  private createWindowOnce(): void {
     if (this.isCreated || this.isCreating || this.windowRoot) return;
     this.isCreating = true;
+
+    const self = this;
 
     const LinearLayout = API.LinearLayout;
     const LinearLayoutParams = API.LinearLayoutParams;
@@ -129,235 +130,284 @@ export class LogViewWindow {
     const View = API.View;
     const PixelFormat = Java.use("android.graphics.PixelFormat");
 
-    const root = LinearLayout.$new(this.context);
-    root.setOrientation(LinearLayout.VERTICAL.value);
-
-    const rootBg = GradientDrawable.$new();
-    rootBg.setCornerRadius(dp(this.context, 12));
-    rootBg.setColor(this.theme.colors.overlayBg);
-    rootBg.setStroke(
-      dp(this.context, 1),
-      this.theme.colors.accentStroke ?? this.theme.colors.controlStroke,
-    );
-    root.setBackgroundDrawable(rootBg);
-
     try {
-      root.setElevation(100010);
-      root.setTranslationZ(100010);
-    } catch {}
+      const root = LinearLayout.$new(this.context);
+      root.setOrientation(LinearLayout.VERTICAL.value);
+      root.setClickable(true);
+      root.setFocusable(false);
 
-    const header = LinearLayout.$new(this.context);
-    header.setOrientation(LinearLayout.HORIZONTAL.value);
-    header.setGravity(Gravity.CENTER_VERTICAL.value);
-    header.setPadding(
-      dp(this.context, 12),
-      dp(this.context, 10),
-      dp(this.context, 12),
-      dp(this.context, 10),
-    );
+      // ===== 高对比测试背景，先确保看得见 =====
+      const rootBg = GradientDrawable.$new();
+      rootBg.setCornerRadius(dp(this.context, 12));
+      rootBg.setColor(0xeeff0000 | 0); // 半透明红色
+      rootBg.setStroke(dp(this.context, 3), 0xffffffff | 0 | 0);
+      root.setBackgroundDrawable(rootBg);
 
-    const headerBg = GradientDrawable.$new();
-    headerBg.setColor(this.theme.colors.cardBg);
-    headerBg.setCornerRadii([
-      dp(this.context, 12),
-      dp(this.context, 12),
-      dp(this.context, 12),
-      dp(this.context, 12),
-      0,
-      0,
-      0,
-      0,
-    ]);
-    header.setBackgroundDrawable(headerBg);
+      try {
+        root.setElevation(100010);
+        root.setTranslationZ(100010);
+      } catch {}
 
-    const title = TextView.$new(this.context);
-    title.setText(JString.$new("日志窗口"));
-    title.setTextColor(this.theme.colors.accent);
-    try {
-      title.setTypeface(null, 1);
-    } catch {}
-    title.setTextSize(2, this.theme.textSp.title);
-    title.setLayoutParams(
-      LinearLayoutParams.$new(
+      const header = LinearLayout.$new(this.context);
+      header.setOrientation(LinearLayout.HORIZONTAL.value);
+      header.setGravity(Gravity.CENTER_VERTICAL.value);
+      header.setPadding(
+        dp(this.context, 12),
+        dp(this.context, 10),
+        dp(this.context, 12),
+        dp(this.context, 10),
+      );
+
+      const headerBg = GradientDrawable.$new();
+      headerBg.setColor(0xff000000 | 0); // 黑色
+      headerBg.setCornerRadii([
+        dp(this.context, 12),
+        dp(this.context, 12),
+        dp(this.context, 12),
+        dp(this.context, 12),
         0,
-        ViewGroupLayoutParams.WRAP_CONTENT.value,
-        1.0,
-      ),
-    );
-
-    const dots = TextView.$new(this.context);
-    dots.setText(JString.$new("● ● ●"));
-    dots.setTextColor(this.theme.colors.subText);
-    dots.setTextSize(2, this.theme.textSp.caption);
-
-    header.addView(title);
-    header.addView(dots);
-
-    const scrollView = ScrollView.$new(this.context);
-    scrollView.setLayoutParams(
-      LinearLayoutParams.$new(
-        ViewGroupLayoutParams.MATCH_PARENT.value,
         0,
-        1.0,
-      ),
-    );
+        0,
+        0,
+      ]);
+      header.setBackgroundDrawable(headerBg);
 
-    try {
-      scrollView.setFillViewport(true);
-      scrollView.setVerticalScrollBarEnabled(false);
-      scrollView.setBackgroundColor(0x00000000);
-    } catch {}
+      const title = TextView.$new(this.context);
+      title.setText(JString.$new("日志窗口 - 可见性测试"));
+      title.setTextColor(0xffffffff | 0 | 0);
+      try {
+        title.setTypeface(null, 1);
+      } catch {}
+      title.setTextSize(2, this.theme?.textSp?.title ?? 16);
+      title.setLayoutParams(
+        LinearLayoutParams.$new(
+          0,
+          ViewGroupLayoutParams.WRAP_CONTENT.value,
+          1.0,
+        ),
+      );
 
-    const logText = TextView.$new(this.context);
-    logText.setLayoutParams(
-      ViewGroupLayoutParams.$new(
-        ViewGroupLayoutParams.MATCH_PARENT.value,
-        ViewGroupLayoutParams.WRAP_CONTENT.value,
-      ),
-    );
-    logText.setTextColor(this.theme.colors.text);
-    logText.setTextSize(2, this.theme.textSp.body);
-    logText.setPadding(
-      dp(this.context, 12),
-      dp(this.context, 10),
-      dp(this.context, 12),
-      dp(this.context, 10),
-    );
-    logText.setText(JString.$new(""));
-    scrollView.addView(logText);
+      const dots = TextView.$new(this.context);
+      dots.setText(JString.$new("● ● ●"));
+      dots.setTextColor(0xffffffff | 0);
+      dots.setTextSize(2, this.theme?.textSp?.caption ?? 12);
 
-    const footer = LinearLayout.$new(this.context);
-    footer.setOrientation(LinearLayout.HORIZONTAL.value);
-    footer.setGravity(Gravity.END.value | Gravity.CENTER_VERTICAL.value);
-    footer.setPadding(
-      dp(this.context, 10),
-      dp(this.context, 8),
-      dp(this.context, 10),
-      dp(this.context, 10),
-    );
+      header.addView(title);
+      header.addView(dots);
 
-    const clearBtn = TextView.$new(this.context);
-    clearBtn.setText(JString.$new("清除"));
-    try {
-      clearBtn.setTypeface(null, 1);
-    } catch {}
-    clearBtn.setTextColor(this.theme.colors.subText);
-    clearBtn.setTextSize(2, this.theme.textSp.caption);
-    clearBtn.setPadding(
-      dp(this.context, 12),
-      dp(this.context, 6),
-      dp(this.context, 12),
-      dp(this.context, 6),
-    );
+      const scrollView = ScrollView.$new(this.context);
+      scrollView.setLayoutParams(
+        LinearLayoutParams.$new(
+          ViewGroupLayoutParams.MATCH_PARENT.value,
+          0,
+          1.0,
+        ),
+      );
 
-    const closeBtn = TextView.$new(this.context);
-    closeBtn.setText(JString.$new("关闭日志"));
-    try {
-      closeBtn.setTypeface(null, 1);
-    } catch {}
-    closeBtn.setTextColor(
-      this.theme.colors.buttonText ?? this.theme.colors.text,
-    );
-    closeBtn.setTextSize(2, this.theme.textSp.caption);
-    closeBtn.setPadding(
-      dp(this.context, 16),
-      dp(this.context, 8),
-      dp(this.context, 16),
-      dp(this.context, 8),
-    );
+      try {
+        scrollView.setFillViewport(true);
+        scrollView.setVerticalScrollBarEnabled(false);
+        scrollView.setBackgroundColor(0x00000000);
+      } catch {}
 
-    const closeBg = GradientDrawable.$new();
-    closeBg.setCornerRadius(dp(this.context, 6));
-    closeBg.setColor(this.theme.colors.accent);
-    closeBtn.setBackgroundDrawable(closeBg);
+      const logText = TextView.$new(this.context);
+      logText.setLayoutParams(
+        ViewGroupLayoutParams.$new(
+          ViewGroupLayoutParams.MATCH_PARENT.value,
+          ViewGroupLayoutParams.WRAP_CONTENT.value,
+        ),
+      );
+      logText.setTextColor(0xffffffff | 0);
+      logText.setTextSize(2, this.theme?.textSp?.body ?? 14);
+      logText.setPadding(
+        dp(this.context, 12),
+        dp(this.context, 10),
+        dp(this.context, 12),
+        dp(this.context, 10),
+      );
+      logText.setText(
+        JString.$new(
+          "如果你看到这个红色窗口，说明日志窗口其实已经显示出来了。\n\n下面是实时日志：\n",
+        ),
+      );
+      scrollView.addView(logText);
 
-    const clearLp = LinearLayoutParams.$new(
-      LinearLayoutParams.WRAP_CONTENT.value,
-      LinearLayoutParams.WRAP_CONTENT.value,
-    );
-    clearLp.setMargins(0, 0, dp(this.context, 10), 0);
-    clearBtn.setLayoutParams(clearLp);
+      const footer = LinearLayout.$new(this.context);
+      footer.setOrientation(LinearLayout.HORIZONTAL.value);
+      footer.setGravity(Gravity.END.value | Gravity.CENTER_VERTICAL.value);
+      footer.setPadding(
+        dp(this.context, 10),
+        dp(this.context, 8),
+        dp(this.context, 10),
+        dp(this.context, 10),
+      );
 
-    footer.addView(clearBtn);
-    footer.addView(closeBtn);
+      const clearBtn = TextView.$new(this.context);
+      clearBtn.setText(JString.$new("清除"));
+      try {
+        clearBtn.setTypeface(null, 1);
+      } catch {}
+      clearBtn.setTextColor(0xffffffff | 0);
+      clearBtn.setTextSize(2, this.theme?.textSp?.caption ?? 12);
+      clearBtn.setPadding(
+        dp(this.context, 12),
+        dp(this.context, 6),
+        dp(this.context, 12),
+        dp(this.context, 6),
+      );
 
-    root.addView(header);
-    root.addView(scrollView);
-    root.addView(footer);
+      const clearBg = GradientDrawable.$new();
+      clearBg.setCornerRadius(dp(this.context, 6));
+      clearBg.setColor(0xff444444 | 0);
+      clearBtn.setBackgroundDrawable(clearBg);
 
-    const width = dp(this.context, 320);
-    const height = dp(this.context, 300);
+      const closeBtn = TextView.$new(this.context);
+      closeBtn.setText(JString.$new("关闭日志"));
+      try {
+        closeBtn.setTypeface(null, 1);
+      } catch {}
+      closeBtn.setTextColor(0xffffffff | 0);
+      closeBtn.setTextSize(2, this.theme?.textSp?.caption ?? 12);
+      closeBtn.setPadding(
+        dp(this.context, 16),
+        dp(this.context, 8),
+        dp(this.context, 16),
+        dp(this.context, 8),
+      );
 
-    const params = LayoutParams.$new(
-      width,
-      height,
-      dp(this.context, 20),
-      dp(this.context, 60),
-      this.buildWindowType(),
-      LayoutParams.FLAG_NOT_FOCUSABLE.value |
-        LayoutParams.FLAG_NOT_TOUCH_MODAL.value,
-      PixelFormat.TRANSLUCENT.value,
-    );
-    params.gravity.value = Gravity.TOP.value | Gravity.START.value;
+      const closeBg = GradientDrawable.$new();
+      closeBg.setCornerRadius(dp(this.context, 6));
+      closeBg.setColor(0xff111111 | 0);
+      closeBtn.setBackgroundDrawable(closeBg);
 
-    this.logView = logText;
-    this.windowRoot = root;
-    this.windowParams = params;
-    this.titleDragHandle = header;
+      const clearLp = LinearLayoutParams.$new(
+        LinearLayoutParams.WRAP_CONTENT.value,
+        LinearLayoutParams.WRAP_CONTENT.value,
+      );
+      clearLp.setMargins(0, 0, dp(this.context, 10), 0);
+      clearBtn.setLayoutParams(clearLp);
 
-    clearBtn.setOnClickListener(
-      Java.registerClass({
-        name:
-          "LogClearClick" + Date.now() + Math.random().toString(36).slice(2),
-        implements: [API.OnClickListener],
-        methods: {
-          onClick: () => {
-            this._logRing = new Array(
-              this._logMaxLinesCache || this.logMaxLines,
-            );
-            this._logHead = 0;
-            this._logSize = 0;
-            this._logPending.length = 0;
-            this.logView?.setText(JString.$new(""));
+      footer.addView(clearBtn);
+      footer.addView(closeBtn);
+
+      root.addView(header);
+      root.addView(scrollView);
+      root.addView(footer);
+
+      // 先缩小一点，避免和主窗口重叠太多
+      const width = dp(this.context, 260);
+      const height = dp(this.context, 220);
+
+      // 故意把位置放偏一点，避免正好盖在你原窗口下面
+      const params = LayoutParams.$new(
+        width,
+        height,
+        // dp(this.context, 120),
+        0,
+        // dp(this.context, 180),
+        0,
+        // this.buildWindowType(),
+        2038,
+        LayoutParams.FLAG_NOT_FOCUSABLE.value |
+          LayoutParams.FLAG_NOT_TOUCH_MODAL.value,
+        1,
+      );
+      params.gravity.value = Gravity.TOP.value | Gravity.START.value;
+
+      this.logView = logText;
+      this.windowRoot = root;
+      this.windowParams = params;
+      this.titleDragHandle = header;
+      this.isCreated = true;
+
+      clearBtn.setOnClickListener(
+        Java.registerClass({
+          name:
+            "LogClearClick" + Date.now() + Math.random().toString(36).slice(2),
+          implements: [API.OnClickListener],
+          methods: {
+            onClick: function () {
+              try {
+                self._logRing = new Array(
+                  self._logMaxLinesCache || self.logMaxLines,
+                );
+                self._logHead = 0;
+                self._logSize = 0;
+                self._logPending.length = 0;
+                if (self.logView) {
+                  self.logView.setText(JString.$new("日志已清空\n"));
+                }
+              } catch (e) {
+                Logger.instance.error("clear log failed: " + e);
+              }
+            },
           },
-        },
-      }).$new(),
-    );
+        }).$new(),
+      );
 
-    closeBtn.setOnClickListener(
-      Java.registerClass({
-        name:
-          "LogCloseClick" + Date.now() + Math.random().toString(36).slice(2),
-        implements: [API.OnClickListener],
-        methods: {
-          onClick: () => this.closeLogWindow(),
-        },
-      }).$new(),
-    );
+      closeBtn.setOnClickListener(
+        Java.registerClass({
+          name:
+            "LogCloseClick" + Date.now() + Math.random().toString(36).slice(2),
+          implements: [API.OnClickListener],
+          methods: {
+            onClick: function () {
+              self.closeLogWindow();
+            },
+          },
+        }).$new(),
+      );
 
-    this.bindDragForHeader();
-    this.bindLoggerToLogViewOnce();
+      try {
+        root.setVisibility(View.GONE.value);
+      } catch {}
+
+      this.bindDragForHeader();
+      this.bindLoggerToLogViewOnce();
+
+      Logger.instance.info(
+        `log window created: width=${width}, height=${height}, x=${params.x.value}, y=${params.y.value}`,
+      );
+    } catch (e) {
+      Logger.instance.error("create log window ui failed: " + e);
+      this.isCreated = false;
+      this.windowRoot = null;
+      this.windowParams = null;
+      this.titleDragHandle = null;
+      this.logView = null;
+    } finally {
+      this.isCreating = false;
+    }
+  }
+
+  private attachWindowIfNeeded(): void {
+    const self = this;
+    const View = API.View;
+
+    if (!this.windowRoot || !this.windowParams) return;
+    if (this.isAttached) return;
 
     Java.scheduleOnMainThread(() => {
       try {
-        this.windowManager.addView(this.windowRoot, this.windowParams);
-        this.isCreated = true;
+        if (!self.windowRoot || !self.windowParams || self.isAttached) return;
 
-        if (this.windowRoot) {
-          this.windowRoot.setVisibility(
-            this.isLogWindowVisible ? View.VISIBLE.value : View.GONE.value,
-          );
+        Logger.instance.info(
+          `attach log window: x=${self.windowParams.x.value}, y=${self.windowParams.y.value}, width=${self.windowParams.width.value}, height=${self.windowParams.height.value}`,
+        );
 
-          if (this.isLogWindowVisible) {
-            try {
-              this.windowRoot.bringToFront();
-            } catch {}
-          }
+        self.windowManager.addView(self.windowRoot, self.windowParams);
+        self.isAttached = true;
+
+        if (self.isLogWindowVisible) {
+          try {
+            self.windowRoot.setVisibility(View.VISIBLE.value);
+            self.windowRoot.bringToFront();
+          } catch {}
         }
+
+        Logger.instance.info("attach log window success");
       } catch (e) {
-        Logger.instance.error("create log window failed: " + e);
-      } finally {
-        this.isCreating = false;
+        Logger.instance.error("attach log window failed: " + e);
       }
     });
   }
@@ -365,7 +415,9 @@ export class LogViewWindow {
   private bindDragForHeader(): void {
     if (!this.titleDragHandle || !this.windowRoot || !this.windowParams) return;
 
+    const self = this;
     const MotionEvent = API.MotionEvent;
+
     let downRawX = 0;
     let downRawY = 0;
     let startX = 0;
@@ -377,85 +429,139 @@ export class LogViewWindow {
           "LogHeaderDrag" + Date.now() + Math.random().toString(36).slice(2),
         implements: [API.OnTouchListener],
         methods: {
-          onTouch: (_v: any, event: any) => {
-            const action = event.getAction();
+          onTouch: function (_v: any, event: any) {
+            try {
+              const action = event.getAction();
 
-            if (action === MotionEvent.ACTION_DOWN.value) {
-              downRawX = event.getRawX();
-              downRawY = event.getRawY();
-              startX = this.windowParams.x.value;
-              startY = this.windowParams.y.value;
-              return true;
+              if (action === MotionEvent.ACTION_DOWN.value) {
+                downRawX = event.getRawX();
+                downRawY = event.getRawY();
+                startX = self.windowParams.x.value;
+                startY = self.windowParams.y.value;
+                return true;
+              }
+
+              if (action === MotionEvent.ACTION_MOVE.value) {
+                const dx = event.getRawX() - downRawX;
+                const dy = event.getRawY() - downRawY;
+
+                self.windowParams.x.value = (startX + dx) | 0;
+                self.windowParams.y.value = (startY + dy) | 0;
+
+                Java.scheduleOnMainThread(() => {
+                  try {
+                    if (
+                      self.windowRoot &&
+                      self.windowParams &&
+                      self.isAttached
+                    ) {
+                      self.windowManager.updateViewLayout(
+                        self.windowRoot,
+                        self.windowParams,
+                      );
+                    }
+                  } catch (e) {
+                    Logger.instance.error("drag update failed: " + e);
+                  }
+                });
+
+                return true;
+              }
+
+              return false;
+            } catch (e) {
+              Logger.instance.error("header touch failed: " + e);
+              return false;
             }
-
-            if (action === MotionEvent.ACTION_MOVE.value) {
-              const dx = event.getRawX() - downRawX;
-              const dy = event.getRawY() - downRawY;
-
-              this.windowParams.x.value = (startX + dx) | 0;
-              this.windowParams.y.value = (startY + dy) | 0;
-
-              Java.scheduleOnMainThread(() => {
-                try {
-                  this.windowManager.updateViewLayout(
-                    this.windowRoot,
-                    this.windowParams,
-                  );
-                } catch {}
-              });
-              return true;
-            }
-
-            return false;
           },
         },
       }).$new(),
     );
   }
-  
 
   public openLogWindow(): void {
-    this.isLogWindowVisible = true;
-    this.createWindowOnce();
-
+    const self = this;
     const View = API.View;
 
-    // 立刻尝试一次
+    this.isLogWindowVisible = true;
+    this.createWindowOnce();
+    this.attachWindowIfNeeded();
+
     Java.scheduleOnMainThread(() => {
       try {
-        if (this.windowRoot && this.isCreated) {
-          this.windowRoot.setVisibility(View.VISIBLE.value);
-          this.windowRoot.bringToFront();
+        if (!self.windowRoot) return;
+
+        self.windowRoot.setVisibility(View.VISIBLE.value);
+
+        if (self.isAttached) {
+          try {
+            self.windowManager.updateViewLayout(
+              self.windowRoot,
+              self.windowParams,
+            );
+          } catch {}
         }
-      } catch {}
+
+        try {
+          self.windowRoot.bringToFront();
+        } catch {}
+
+        Logger.instance.info("open log window success");
+      } catch (e) {
+        Logger.instance.error("open log window failed: " + e);
+      }
     });
 
-    // 再兜底补一次，解决 addView 还没执行完的时序问题
     setTimeout(() => {
       Java.scheduleOnMainThread(() => {
         try {
-          if (this.windowRoot && this.isCreated && this.isLogWindowVisible) {
-            this.windowRoot.setVisibility(View.VISIBLE.value);
-            this.windowRoot.bringToFront();
+          if (!self.windowRoot || !self.isLogWindowVisible) return;
+
+          self.windowRoot.setVisibility(View.VISIBLE.value);
+
+          if (!self.isAttached) {
+            try {
+              self.windowManager.addView(self.windowRoot, self.windowParams);
+              self.isAttached = true;
+            } catch {}
+          } else {
+            try {
+              self.windowManager.updateViewLayout(
+                self.windowRoot,
+                self.windowParams,
+              );
+            } catch {}
           }
+
+          try {
+            self.windowRoot.bringToFront();
+          } catch {}
         } catch {}
       });
-    }, 60);
+    }, 80);
   }
 
   public closeLogWindow(): void {
     this.isLogWindowVisible = false;
     if (!this.windowRoot) return;
 
+    const self = this;
     const View = API.View;
+
     Java.scheduleOnMainThread(() => {
       try {
-        this.windowRoot.setVisibility(View.GONE.value);
-      } catch {}
+        if (!self.windowRoot) return;
+        self.windowRoot.setVisibility(View.GONE.value);
+        Logger.instance.info("close log window success");
+      } catch (e) {
+        Logger.instance.error("close log window failed: " + e);
+      }
     });
   }
 
   public destroy(): void {
+    const self = this;
+
     this.isLogWindowVisible = false;
 
     if (this._loggerUnsub) {
@@ -465,19 +571,22 @@ export class LogViewWindow {
       this._loggerUnsub = null;
     }
 
-    if (this.windowRoot && this.isCreated) {
-      Java.scheduleOnMainThread(() => {
-        try {
-          this.windowManager.removeView(this.windowRoot);
-        } catch {}
-      });
-    }
-
-    this.windowRoot = null;
-    this.windowParams = null;
-    this.titleDragHandle = null;
-    this.logView = null;
-    this.isCreated = false;
-    this.isCreating = false;
+    Java.scheduleOnMainThread(() => {
+      try {
+        if (self.windowRoot && self.isAttached) {
+          self.windowManager.removeView(self.windowRoot);
+        }
+      } catch (e) {
+        Logger.instance.error("destroy remove log window failed: " + e);
+      } finally {
+        self.windowRoot = null;
+        self.windowParams = null;
+        self.titleDragHandle = null;
+        self.logView = null;
+        self.isCreated = false;
+        self.isCreating = false;
+        self.isAttached = false;
+      }
+    });
   }
 }
