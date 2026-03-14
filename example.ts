@@ -270,6 +270,7 @@ Java.perform(() => {
   // Selector - 城市选择
   const citySelector = new Selector(
     "city_selector",
+    '城市',
     [
       { lable: "北京", code: "BJ" },
       { lable: "上海", code: "SH" },
@@ -293,6 +294,7 @@ Java.perform(() => {
   // Selector - 颜色选择
   const colorSelector = new Selector(
     "color_selector",
+    '颜色',
     [
       { lable: "红色", color: "#FF0000" },
       { lable: "绿色", color: "#00FF00" },
@@ -311,6 +313,7 @@ Java.perform(() => {
   // Selector - 语言选择
   const languageSelector = new Selector(
     "language_selector",
+    '语言',
     [
       { lable: "简体中文", lang: "zh-CN" },
       { lable: "繁體中文", lang: "zh-TW" },
@@ -434,6 +437,7 @@ Java.perform(() => {
 
   const roleSelector = new Selector(
     "role_selector",
+    '角色',
     [
       { lable: "管理员", role: "admin" },
       { lable: "普通用户", role: "user" },
@@ -459,6 +463,7 @@ Java.perform(() => {
 
   const logLevelSelector = new Selector(
     "log_level",
+    '等级',
     [
       { lable: "调试 (DEBUG)", level: 0 },
       { lable: "信息 (INFO)", level: 1 },
@@ -605,6 +610,7 @@ Java.perform(() => {
   // 商品选择器
   const productSelector = new Selector(
     "product_selector",
+    '商品',
     [
       { lable: "笔记本电脑", price: 5999 },
       { lable: "鼠标", price: 99 },
@@ -642,6 +648,7 @@ Java.perform(() => {
   // 运费选择器
   const shippingSelector = new Selector(
     "shipping_selector",
+    '运费',
     [
       { lable: "普通快递 (¥10)", fee: 10 },
       { lable: "加急快递 (¥20)", fee: 20 },

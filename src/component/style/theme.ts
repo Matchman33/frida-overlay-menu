@@ -52,5 +52,5 @@ export const DarkNeonTheme: Theme = {
     buttonText: 0xffffffff | 0,
   },
   radiusDp: { overlay: 16, card: 14, control: 14 },
-  textSp: { title: 14, body: 13, caption: 11 },
+  textSp: { title: 14, body: 13, caption: 12 },
 };

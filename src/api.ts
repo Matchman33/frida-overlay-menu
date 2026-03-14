@@ -8,16 +8,26 @@ export const API = {
   get FrameLayoutParams() {
     return Java.use("android.widget.FrameLayout$LayoutParams");
   },
+  // const PopupWindow = Java.use("android.widget.PopupWindow");
+  get PopupWindow() {
+    return Java.use("android.widget.PopupWindow");
+  },
+
+  get PopupWindowOnDismissListener() {
+    return Java.use("android.widget.PopupWindow$OnDismissListener");
+  },
   get Gravity() {
     return Java.use("android.view.Gravity");
   },
   get DialogMultiChoiceListener() {
-    return Java.use("android.content.DialogInterface$OnMultiChoiceClickListener");
+    return Java.use(
+      "android.content.DialogInterface$OnMultiChoiceClickListener",
+    );
   },
   get DialogClickListener() {
     return Java.use("android.content.DialogInterface$OnClickListener");
   },
-    get HorizontalScrollView() {
+  get HorizontalScrollView() {
     return Java.use("android.widget.HorizontalScrollView");
   },
   get Context() {

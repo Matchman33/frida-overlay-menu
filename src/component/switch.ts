@@ -1,19 +1,24 @@
 import { API } from "../api";
-import { applyStyle } from "./style/style";
+import { applyStyle, dp } from "./style/style";
 import { UIComponent } from "./ui-components";
 
 export class Switch extends UIComponent {
   private label: string;
-  private handler?: (vlaue: boolean) => void;
+  private handler?: (value: boolean) => void;
 
-  private switchView: any;
   private labelView: any;
+  private switchView: any;
 
-  public onValueChange(handler: (vlaue: boolean) => void) {
+  public onValueChange(handler: (value: boolean) => void) {
     this.handler = handler;
   }
 
-  constructor(id: string, label: string, initialValue: boolean = false, handler?: (vlaue: boolean) => void) {
+  constructor(
+    id: string,
+    label: string,
+    initialValue: boolean = false,
+    handler?: (value: boolean) => void,
+  ) {
     super(id);
     this.label = label;
     this.value = initialValue;
@@ -28,64 +33,120 @@ export class Switch extends UIComponent {
     const TextView = API.TextView;
     const Switch = API.Switch;
     const String = API.JString;
+    const OnClickListener = API.OnClickListener;
+    const OnCheckedChangeListener = API.OnCheckedChangeListener;
 
+    const theme = this.menu.options.theme!;
+
+    // 外层整行卡片
     const row = LinearLayout.$new(context);
     row.setOrientation(LinearLayout.HORIZONTAL.value);
     row.setGravity(Gravity.CENTER_VERTICAL.value);
-    applyStyle(row, "row", this.menu.options.theme!);
+    applyStyle(row, "row", theme);
+    row.setPadding(dp(context, 14), dp(context, 12), dp(context, 14), dp(context, 12));
 
+    // 左侧标题
     const label = TextView.$new(context);
     label.setText(String.$new(this.label));
-    applyStyle(label, "text", this.menu.options.theme!);
+    applyStyle(label, "text", theme);
+    label.setTextSize(2, 14);
+    try {
+      label.setTypeface(null, 1);
+    } catch (_e) {}
+    label.setSingleLine(true);
+    label.setGravity(Gravity.LEFT.value | Gravity.CENTER_VERTICAL.value);
     label.setLayoutParams(
-      LinearLayoutParams.$new(0, ViewGroupLayoutParams.WRAP_CONTENT.value, 1),
+      LinearLayoutParams.$new(0, ViewGroupLayoutParams.WRAP_CONTENT.value, 1.0),
     );
 
+    // 右侧原生开关
     const sw = Switch.$new(context);
-    sw.setChecked(this.value);
-    sw.setText(String.$new("")); // 不用自带文字
+    sw.setText(String.$new(""));
+    sw.setChecked(!!this.value);
+    sw.setShowText(false);
 
-    row.addView(label);
-    row.addView(sw);
+    try {
+      sw.setMinWidth(dp(context, 50));
+      sw.setMinimumWidth(dp(context, 50));
+    } catch (_e) {}
 
-    this.view = row;
-    this.switchView = sw;
-    this.labelView = label;
+    try {
+      sw.setSwitchMinWidth(dp(context, 50));
+    } catch (_e) {}
 
-    const Listener = API.CompoundButtonOnCheckedChangeListener;
+    try {
+      sw.setScaleX(1.05);
+      sw.setScaleY(1.05);
+    } catch (_e) {}
+
+    const switchLp = LinearLayoutParams.$new(
+      ViewGroupLayoutParams.WRAP_CONTENT.value,
+      ViewGroupLayoutParams.WRAP_CONTENT.value,
+    );
+    switchLp.leftMargin = dp(context, 12);
+    sw.setLayoutParams(switchLp);
+
     const self = this;
 
-    const changeListener = Java.registerClass({
+    const checkedListener = Java.registerClass({
       name:
         "com.frida.MyCheckedChangeListener" +
         Date.now() +
         Math.random().toString(36).substring(6),
-      implements: [Listener],
+      implements: [OnCheckedChangeListener],
       methods: {
-        onCheckedChanged: function (_btn: any, isChecked: boolean) {
-          self.value = isChecked;
-          self.emit("valueChanged", isChecked);
-          if (self.handler) setImmediate(() => self.handler!(isChecked));
+        onCheckedChanged: function (_buttonView: any, isChecked: boolean) {
+          self.value = !!isChecked;
+          self.emit("valueChanged", self.value);
+          if (self.handler) {
+            setImmediate(() => self.handler!(self.value));
+          }
         },
       },
     });
 
-    this.switchView.setOnCheckedChangeListener(changeListener.$new());
+    sw.setOnCheckedChangeListener(checkedListener.$new());
+
+    const clickListener = Java.registerClass({
+      name:
+        "com.frida.MySwitchRowClickListener" +
+        Date.now() +
+        Math.random().toString(36).substring(6),
+      implements: [OnClickListener],
+      methods: {
+        onClick: function (_v: any) {
+          if (!self.switchView) return;
+          self.switchView.setChecked(!self.switchView.isChecked());
+        },
+      },
+    });
+
+    row.setClickable(true);
+    row.setOnClickListener(clickListener.$new());
+
+    row.addView(label);
+    row.addView(sw);
+
+    this.labelView = label;
+    this.switchView = sw;
+    this.view = row;
   }
 
   protected updateView(): void {
-    if (!this.view) return;
+    if (!this.switchView) return;
+
     Java.scheduleOnMainThread(() => {
-      if (this.switchView) this.switchView.setChecked(this.value);
+      this.switchView.setChecked(!!this.value);
     });
   }
 
   public setLabel(label: string): void {
     this.label = label;
-    if (!this.view) return;
+    if (!this.labelView) return;
+
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      if (this.labelView) this.labelView.setText(String.$new(label));
+      this.labelView.setText(String.$new(label));
     });
   }
 }

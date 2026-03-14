@@ -1,24 +1,33 @@
 import { API } from "../api";
 import { Logger } from "../logger";
-import { applyStyle } from "./style/style";
+import { applyStyle, dp } from "./style/style";
 import { UIComponent } from "./ui-components";
 
 export class Selector extends UIComponent {
+  private title: string;
   private items: { lable: string; [key: string]: any }[];
   private selectedIndex: number;
-  private handler?: (value: any) => {};
+  private handler?: (value: any) => void;
   private context: any;
+
+  private titleView: any;
+  private valueView: any;
 
   constructor(
     id: string,
+    title: string,
     items: { lable: string; [key: string]: any }[],
     selectedIndex: number = 0,
-    handler?: (value: any) => {},
+    handler?: (value: any) => void,
   ) {
     super(id);
-    this.items = items;
-    this.selectedIndex = selectedIndex;
-    this.value = items[selectedIndex];
+    this.title = title;
+    this.items = items ?? [];
+    this.selectedIndex = Math.max(
+      0,
+      Math.min(selectedIndex, Math.max(0, this.items.length - 1)),
+    );
+    this.value = this.items.length > 0 ? this.items[this.selectedIndex] : null;
     this.handler = handler;
   }
 
@@ -26,75 +35,253 @@ export class Selector extends UIComponent {
     return this.value;
   }
 
+  public onValueChange(handler: (value: any) => void) {
+    this.handler = handler;
+  }
+
   protected createView(context: any): void {
     this.context = context;
-    const Spinner = API.Spinner;
-    const ArrayAdapter = API.ArrayAdapter;
+
+    const LinearLayout = API.LinearLayout;
+    const LinearLayoutParams = API.LinearLayoutParams;
+    const ViewGroupLayoutParams = API.ViewGroupLayoutParams;
+    const TextView = API.TextView;
+    const Gravity = API.Gravity;
     const String = API.JString;
-    this.view = Spinner.$new(context);
-    this.view.setBackgroundColor(0xff555555 | 0); // gray background
-    // applyStyle(this.view, 'inputTrigger', this.menu.options.theme!);
+    const OnClickListener = API.OnClickListener;
 
-    const res = context.getResources();
-    const itemLayout = res.getIdentifier(
-      "simple_spinner_item",
-      "layout",
-      "android",
-    );
-    const dropLayout = res.getIdentifier(
-      "simple_spinner_dropdown_item",
-      "layout",
-      "android",
-    );
-    // Convert JavaScript strings to Java strings
-    const javaItems = this.items.map((item) => String.$new(item.lable));
-    const adapter = ArrayAdapter.$new(
-      context,
-      itemLayout,
-      Java.array("java.lang.String", javaItems),
-    );
-    adapter.setDropDownViewResource(dropLayout);
-    this.view.setAdapter(adapter);
-    this.view.setSelection(this.selectedIndex);
+    const theme = this.menu.options.theme!;
 
-    // Try to set text color (may not work on all Android versions)
+    const root = LinearLayout.$new(context);
+    root.setOrientation(LinearLayout.VERTICAL.value);
+    root.setLayoutParams(
+      LinearLayoutParams.$new(
+        ViewGroupLayoutParams.MATCH_PARENT.value,
+        ViewGroupLayoutParams.WRAP_CONTENT.value,
+      ),
+    );
+
+    // 上方标题
+    const titleView = TextView.$new(context);
+    titleView.setText(String.$new(this.title));
+    applyStyle(titleView, "caption", theme);
     try {
-      this.view.setPopupBackgroundResource(0xff333333 | 0);
-    } catch (e) {
-      // ignore
-    }
-    const AdapterViewOnItemSelectedListener =
-      API.AdapterViewOnItemSelectedListener;
-    const self = this;
+      titleView.setTypeface(null, 1);
+    } catch (_e) {}
+    try {
+      titleView.setAllCaps(true);
+    } catch (_e) {}
+    try {
+      titleView.setLetterSpacing(0.04);
+    } catch (_e) {}
 
-    const itemSelectedListener = Java.registerClass({
+    const titleLp = LinearLayoutParams.$new(
+      ViewGroupLayoutParams.MATCH_PARENT.value,
+      ViewGroupLayoutParams.WRAP_CONTENT.value,
+    );
+    // titleLp.bottomMargin = dp(context, 8);
+    titleLp.setMargins(0, 0, 0, dp(context, 8));
+    titleView.setLayoutParams(titleLp);
+
+    // 触发行
+    const triggerRow = LinearLayout.$new(context);
+    triggerRow.setOrientation(LinearLayout.HORIZONTAL.value);
+    triggerRow.setGravity(Gravity.CENTER_VERTICAL.value);
+    applyStyle(triggerRow, "row", theme);
+    triggerRow.setPadding(
+      dp(context, 14),
+      dp(context, 14),
+      dp(context, 14),
+      dp(context, 14),
+    );
+
+    const valueView = TextView.$new(context);
+    valueView.setText(String.$new(this.getDisplayText()));
+    applyStyle(valueView, "text", theme);
+    valueView.setTextSize(2, 14);
+    try {
+      valueView.setTypeface(null, 1);
+    } catch (_e) {}
+    valueView.setSingleLine(true);
+    valueView.setGravity(Gravity.LEFT.value | Gravity.CENTER_VERTICAL.value);
+    valueView.setLayoutParams(
+      LinearLayoutParams.$new(0, ViewGroupLayoutParams.WRAP_CONTENT.value, 1.0),
+    );
+
+    const arrowView = TextView.$new(context);
+    arrowView.setText(String.$new("⌄"));
+    arrowView.setTextColor(theme.colors.accent);
+    arrowView.setTextSize(2, 18);
+    try {
+      arrowView.setTypeface(null, 1);
+    } catch (_e) {}
+    arrowView.setGravity(Gravity.CENTER.value);
+
+    const arrowLp = LinearLayoutParams.$new(
+      ViewGroupLayoutParams.WRAP_CONTENT.value,
+      ViewGroupLayoutParams.WRAP_CONTENT.value,
+    );
+    arrowLp.leftMargin = dp(context, 12);
+    arrowView.setLayoutParams(arrowLp);
+
+    triggerRow.addView(valueView);
+    triggerRow.addView(arrowView);
+
+    const self = this;
+    const clickListener = Java.registerClass({
       name:
-        "com.frida.MyItemSelectedListener" +
+        "com.frida.MySelectorTriggerClickListener" +
         Date.now() +
         Math.random().toString(36).substring(6),
-      implements: [AdapterViewOnItemSelectedListener],
+      implements: [OnClickListener],
       methods: {
-        onItemSelected: function (
-          parent: any,
-          view: any,
-          position: number,
-          id: number,
-        ) {
-          self.selectedIndex = position;
-          self.value = self.items[position];
-          self.emit("valueChanged", self.value);
-          if (self.handler) setImmediate(() => self.handler!(self.value));
-        },
-        onNothingSelected: function (parent: any) {
-          // Do nothing
+        onClick: function (_v: any) {
+          self.showSelectDialog();
         },
       },
     });
-    this.view.setOnItemSelectedListener(itemSelectedListener.$new());
+
+    triggerRow.setClickable(true);
+    triggerRow.setOnClickListener(clickListener.$new());
+
+    root.addView(titleView);
+    root.addView(triggerRow);
+
+    this.titleView = titleView;
+    this.valueView = valueView;
+    this.view = root;
+
+    this.refreshUi();
   }
 
-  public onValueChange(handler: (value: any) => {}) {
-    this.handler = handler;
+  private getSelectedLabel(): string {
+    if (
+      this.selectedIndex >= 0 &&
+      this.selectedIndex < this.items.length &&
+      this.items[this.selectedIndex]
+    ) {
+      return this.items[this.selectedIndex].lable ?? "";
+    }
+    return "";
+  }
+
+  private getDisplayText(): string {
+    const item = this.getSelectedLabel();
+    if (!this.title && !item) return "";
+    if (!this.title) return item;
+    return `${item}`;
+  }
+
+  private showSelectDialog(): void {
+    if (!this.context || this.items.length === 0) return;
+
+    Java.scheduleOnMainThread(() => {
+      try {
+        const AlertDialogBuilder =
+          API.AlertDialogBuilder ?? Java.use("android.app.AlertDialog$Builder");
+        const String = API.JString;
+        const DialogInterfaceOnClickListener =
+          API.DialogInterfaceOnClickListener ??
+          Java.use("android.content.DialogInterface$OnClickListener");
+        const WindowManagerLayoutParams = Java.use(
+          "android.view.WindowManager$LayoutParams",
+        );
+        const BuildVersion = Java.use("android.os.Build$VERSION");
+
+        const labels = this.items.map((item) => String.$new(item.lable));
+        const javaItems = Java.array("java.lang.CharSequence", labels);
+
+        const self = this;
+        const itemClickListener = Java.registerClass({
+          name:
+            "com.frida.MySelectorDialogClickListener" +
+            Date.now() +
+            Math.random().toString(36).substring(6),
+          implements: [DialogInterfaceOnClickListener],
+          methods: {
+            onClick: function (dialog: any, which: number) {
+              self.selectedIndex = which;
+              self.value = self.items[which];
+              self.refreshUi();
+              self.emit("valueChanged", self.value);
+
+              if (self.handler) {
+                setImmediate(() => self.handler!(self.value));
+              }
+
+              try {
+                dialog.dismiss();
+              } catch (_e) {}
+            },
+          },
+        });
+
+        const builder = AlertDialogBuilder.$new(this.context);
+        builder.setTitle(String.$new(this.title));
+        builder.setItems(javaItems, itemClickListener.$new());
+
+        const dialog = builder.create();
+
+        // 设置为悬浮窗类型，避免 token 问题
+        try {
+          const window = dialog.getWindow();
+          if (window) {
+            const sdkInt = BuildVersion.SDK_INT.value;
+            if (sdkInt >= 26) {
+              window.setType(
+                WindowManagerLayoutParams.TYPE_APPLICATION_OVERLAY.value,
+              );
+            } else {
+              window.setType(WindowManagerLayoutParams.TYPE_SYSTEM_ALERT.value);
+            }
+          }
+        } catch (e) {
+          Logger.instance.warn(
+            `[Selector:${this.id}] Failed to set dialog overlay type: ${e}`,
+          );
+        }
+
+        dialog.show();
+
+        try {
+          const window = dialog.getWindow();
+          if (window) {
+            const dialogWidth = dp(this.context, 380);
+
+            window.setLayout(
+              dialogWidth,
+              WindowManagerLayoutParams.WRAP_CONTENT.value,
+            );
+          }
+        } catch (e) {
+          Logger.instance.warn(
+            `[Selector:${this.id}] Failed to resize dialog: ${e}`,
+          );
+        }
+      } catch (error) {
+        Logger.instance.error(
+          `[Selector:${this.id}] Failed to show selector dialog: ${error}`,
+        );
+      }
+    });
+  }
+
+  private refreshUi(): void {
+    if (!this.view) return;
+
+    Java.scheduleOnMainThread(() => {
+      try {
+        const String = API.JString;
+
+        if (this.valueView) {
+          this.valueView.setText(String.$new(this.getDisplayText()));
+        }
+      } catch (error) {
+        Logger.instance.error(
+          `[Selector:${this.id}] Failed to refresh UI: ${error}`,
+        );
+      }
+    });
   }
 
   protected updateView(): void {
@@ -104,67 +291,46 @@ export class Selector extends UIComponent {
       );
       return;
     }
-    // Update selection based on value
 
     const index = this.items.findIndex(
-      (value) => value.lable == this.value.lable,
+      (value) => value && this.value && value.lable == this.value.lable,
     );
+
     if (index !== -1) {
-      Java.scheduleOnMainThread(() => {
-        this.view.setSelection(index);
-      });
+      this.selectedIndex = index;
     }
+
+    this.refreshUi();
   }
 
-  /**
-   * Set selector items
-   */
   public setItems(items: { lable: string; [key: string]: any }[]): void {
-    this.items = items;
-    if (!this.view) {
-      Logger.instance.warn(
-        `[Selector:${this.id}] Cannot set items - view not initialized`,
-      );
-      return;
-    }
-    // Update adapter
-    Java.scheduleOnMainThread(() => {
-      try {
-        const ArrayAdapter = API.ArrayAdapter;
-        const String = API.JString;
-        // Convert JavaScript strings to Java strings
-        const javaItems = items.map((item) => String.$new(item.lable));
+    this.items = items ?? [];
 
-        const res = this.context.getResources();
-        const itemLayout = res.getIdentifier(
-          "simple_spinner_item",
-          "layout",
-          "android",
-        );
-        const dropLayout = res.getIdentifier(
-          "simple_spinner_dropdown_item",
-          "layout",
-          "android",
-        );
-        const adapter = ArrayAdapter.$new(
-          this.context,
-          itemLayout,
-          Java.array("java.lang.CharSequence", javaItems),
-        );
-        adapter.setDropDownViewResource(
-          dropLayout,
-        );
-        this.view.setAdapter(adapter);
-      } catch (error) {
-        Logger.instance.error(`[Selector:${this.id}] Failed to set items:`, error);
+    if (this.items.length === 0) {
+      this.selectedIndex = -1;
+      this.value = null;
+    } else {
+      if (this.selectedIndex < 0 || this.selectedIndex >= this.items.length) {
+        this.selectedIndex = 0;
       }
-    });
+      this.value = this.items[this.selectedIndex];
+    }
+
+    this.refreshUi();
   }
 
-  /**
-   * Get selected index
-   */
   public getSelectedIndex(): number {
     return this.selectedIndex;
+  }
+
+  public setTitle(title: string): void {
+    this.title = title;
+    if (!this.titleView) return;
+
+    Java.scheduleOnMainThread(() => {
+      const String = API.JString;
+      this.titleView.setText(String.$new(title));
+      this.refreshUi();
+    });
   }
 }

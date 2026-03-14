@@ -6,6 +6,8 @@ export type StyleRole =
   | "card"
   | "category"
   | "row"
+  | "fieldLabel"
+  | "selectValue"
   | "text"
   | "caption"
   | "noteText"
@@ -108,6 +110,38 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       view.setPadding(dpx(14), dpx(12), dpx(14), dpx(12));
       break;
 
+    case "fieldLabel": {
+      const tv = asTextView();
+      if (tv) {
+        tv.setTextColor(theme.colors.subText);
+        tv.setTextSize(2, 11);
+        tv.setAllCaps(true);
+        try {
+          tv.setTypeface(null, 1);
+        } catch (_e) {}
+        try {
+          tv.setLetterSpacing(0.04);
+        } catch (_e) {}
+      }
+      break;
+    }
+
+    case "selectValue": {
+      const tv = asTextView();
+      if (tv) {
+        tv.setTextColor(theme.colors.text);
+        tv.setTextSize(2, 14);
+        try {
+          tv.setTypeface(null, 1);
+        } catch (_e) {}
+        tv.setSingleLine(true);
+        tv.setGravity(
+          API.Gravity.LEFT.value | API.Gravity.CENTER_VERTICAL.value,
+        );
+      }
+      break;
+    }
+
     case "category": {
       // 这里只负责 category 里的文字本体，不负责整块背景
       const tv = asTextView();
@@ -121,7 +155,9 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
         try {
           tv.setTypeface(null, 1);
         } catch (_e) {}
-        tv.setGravity(API.Gravity.LEFT.value | API.Gravity.CENTER_VERTICAL.value);
+        tv.setGravity(
+          API.Gravity.LEFT.value | API.Gravity.CENTER_VERTICAL.value,
+        );
       }
       break;
     }
@@ -191,7 +227,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       view.setMinimumHeight(dpx(48));
       const tv = asTextView();
       if (tv) {
-        tv.setTextColor(theme.colors.buttonText ?? (0xffffffff | 0));
+        tv.setTextColor(theme.colors.buttonText ?? 0xffffffff | 0);
         tv.setTextSize(2, 14);
         tv.setAllCaps(true);
         try {
@@ -208,7 +244,7 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
       view.setMinimumHeight(dpx(48));
       const tv = asTextView();
       if (tv) {
-        tv.setTextColor(theme.colors.buttonText ?? (0xffffffff | 0));
+        tv.setTextColor(theme.colors.buttonText ?? 0xffffffff | 0);
         tv.setTextSize(2, 14);
         tv.setAllCaps(true);
         try {
