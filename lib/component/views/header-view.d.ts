@@ -1,0 +1,19 @@
+import { Theme } from "../style/theme";
+export interface HeaderViewOptions {
+    context: any;
+    parent: any;
+    logPanelView: any;
+    height: number;
+    logMaxLines?: number;
+    title: string;
+    version: string;
+}
+export declare class HeaderView {
+    private readonly theme;
+    private headerDragView;
+    constructor(theme: Theme);
+    createView(options: HeaderViewOptions, callbacks: {
+        onMinimize: () => void;
+        onHide: () => void;
+    }): any;
+}

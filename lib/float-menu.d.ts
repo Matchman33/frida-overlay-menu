@@ -22,6 +22,7 @@ export interface FloatMenuOptions {
 export declare class FloatMenu {
     options: FloatMenuOptions;
     private headerView;
+    private headerComponent;
     private iconView;
     uiComponents: Map<string, UIComponent>;
     private pendingComponents;
@@ -59,5 +60,4 @@ export declare class FloatMenu {
     setComponentValue(id: string, value: any): void;
     on(event: string, callback: (...args: any[]) => void): void;
     off(event: string, callback: (...args: any[]) => void): void;
-    private createHeaderView;
 }
