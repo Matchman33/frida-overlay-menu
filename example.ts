@@ -237,6 +237,7 @@ Java.perform(() => {
   // CheckBoxGroup - 爱好选择（多选）
   const hobbiesGroup = new CheckBoxGroup(
     "hobbies",
+    '爱好',
     [
       { id: "reading", label: "阅读" },
       { id: "music", label: "音乐" },
@@ -549,6 +550,7 @@ Java.perform(() => {
   // 评分标签
   const tagsGroup = new CheckBoxGroup(
     "rating_tags",
+    '评分',
     [
       { id: "fast", label: "响应快" },
       { id: "stable", label: "稳定" },
