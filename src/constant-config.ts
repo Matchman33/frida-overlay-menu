@@ -5,6 +5,7 @@ export class ConstantConfig {
   public static screenHeight: number;
 
   
+  // 手动设置
   // 当前是否为测试环境。决定日志打印或者是否过检测等特殊代码
-  public static isDev = true;
+  public static isDev = false;
 }

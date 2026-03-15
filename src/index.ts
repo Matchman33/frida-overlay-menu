@@ -1,4 +1,3 @@
-// Re-export all public API from the library
 
 // Event system
 export { EventEmitter } from "./event-emitter";
@@ -15,5 +14,7 @@ export { Selector } from "./component/selector";
 export { Slider } from "./component/slider";
 export { Switch } from "./component/switch";
 export { TextView as Text } from "./component/text";
+export { ConstantConfig } from "./constant-config"
+export {CheckBoxGroup} from "./component/checkBox"
 // FloatMenu main class
 export { FloatMenu, FloatMenuOptions, TabDefinition } from "./float-menu";

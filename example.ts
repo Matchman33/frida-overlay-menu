@@ -17,7 +17,8 @@ import { ImageView } from "./src/component/image";
 import { DarkNeonTheme } from "./src/component/style/theme";
 import { Selector } from "./src/component/selector";
 import { Slider } from "./src/component/slider";
-
+import { ConstantConfig } from "./src/constant-config";
+ConstantConfig.isDev = true;
 Java.perform(() => {
   const options: FloatMenuOptions = {
     width: 1200,

@@ -1,4 +1,4 @@
-# Frida Float Menu - Android 悬浮窗 UI 库
+# Frida Overlay Menu - Android 悬浮窗 UI 库
 
 一个为 Frida 逆向工程设计的 TypeScript 库，用于在 Android 设备上创建交互式悬浮窗口。支持多种 UI 组件（按钮、开关、文本、选择器等），可以轻松地从 JavaScript 控制。
 
@@ -17,7 +17,7 @@
 
 ## 📋 环境要求
 
-- Frida（已测试 Android 平台）
+- Frida（已测试 Android 15和16 平台）
 - 目标 Android 应用需要悬浮窗权限（API 26+ 需要权限 `TYPE_APPLICATION_OVERLAY`）
 - frida-compile 用于 TypeScript 编译（已包含在开发依赖中）
 
@@ -38,6 +38,10 @@ import { FloatMenu, Button, Switch, Text } from './path/to/src/index';
 
 ```typescript
 import { FloatMenu, Button, Switch, Text, Selector } from './src/index';
+import { ConstantConfig } from "./src/constant-config";
+
+// 使用ConstantConfig.isDev来设置当前是否为调试环境，此属性会影响日志打印级别。非dev环境不会打印debug日志。默认为false。
+ConstantConfig.isDev = true;
 
 Java.perform(() => {
     // 创建悬浮菜单
@@ -127,7 +131,6 @@ const usernameInput = new TextInput(
     '',        // 初始值
     '用户名：', // 按钮文本
     '请输入用户名', // 提示文本
-    '输入用户名'    // 对话框标题
 );
 
 usernameInput.setonClick((value: string) => {
@@ -138,20 +141,18 @@ menu.addComponent(usernameInput);
 ```
 
 #### 5. NumberInput - 数字输入框
-数值输入，支持最小值、最大值限制。
+数值输入。
 
 ```typescript
 const ageInput = new NumberInput(
     'age',
     25,         // 初始值
-    0,          // 最小值
-    120,        // 最大值
     '年龄：',    // 按钮文本
     '请输入年龄', // 提示文本
     '输入年龄'    // 对话框标题
 );
 
-ageInput.setonClick((value: number) => {
+ageInput.onValueChange((value: number) => {
     console.log('年龄:', value);
     // 根据年龄显示不同分类
     let category = value < 18 ? "未成年" : "成年人";
@@ -252,7 +253,7 @@ const settingsCollapsible = new Collapsible(
 );
 
 // 添加子组件到折叠面板
-const usernameInput = new TextInput('username', 'admin', '用户名', '请输入用户名', '修改用户名');
+const usernameInput = new TextInput('username', 'admin', '用户名', '请输入用户名');
 const roleSelector = new Selector('role', [
     { lable: '管理员', role: 'admin' },
     { lable: '普通用户', role: 'user' }
@@ -410,7 +411,6 @@ frida-float-menu/
 │       └── style/         # 样式相关
 │           ├── theme.ts   # 主题配置
 │           └── style.ts   # 样式工具
-├── example.ts             # TypeScript 使用示例（综合测试用例）
 ├── example.js             # 编译后的 JavaScript 示例
 ├── icon.ts                # 图标 base64 编码
 ├── package.json           # 包配置文件
@@ -427,7 +427,7 @@ frida-float-menu/
 ```bash
 npm install                    # 安装依赖
 npm run check                 # 类型检查
-npm run build-example         # 编译示例脚本
+npm run build         # 编译示例脚本
 ```
 
 ## 📖 使用示例
