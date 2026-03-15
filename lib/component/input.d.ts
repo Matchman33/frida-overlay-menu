@@ -1,16 +1,24 @@
 import { UIComponent } from "./ui-components";
-export declare class NumberInput extends UIComponent {
-    private text;
-    private hint;
+declare abstract class BaseInputButton extends UIComponent {
+    protected title: string;
+    protected hint: string;
+    protected isShowDialog: boolean;
+    protected buttonView: any;
+    protected buttonLabelView: any;
+    protected buttonIconView: any;
+    constructor(id: string, title: string, hint: string);
+    protected createBaseView(context: any): void;
+    protected refreshButtonText(): void;
+    protected abstract buildDisplayText(): string;
+}
+export declare class NumberInput extends BaseInputButton {
     private min;
     private max;
     private handler?;
-    private title;
-    private isShowDialog;
-    constructor(id: string, initialValue?: number, min?: number | null, max?: number | null, text?: string, hint?: string, title?: string);
-    protected updateView(): void;
-    getValue(): number;
+    constructor(id: string, initialValue?: number, title?: string, hint?: string);
+    protected buildDisplayText(): string;
     protected createView(context: any): void;
+    protected updateView(): void;
     private showDialog;
     onValueChange(handler: (value: number) => void): void;
     private applyConstraints;
@@ -19,17 +27,15 @@ export declare class NumberInput extends UIComponent {
     getNumber(): number;
     setNumber(value: number): void;
 }
-export declare class TextInput extends UIComponent {
-    private text;
-    private hint;
+export declare class TextInput extends BaseInputButton {
     private handler?;
-    private title;
-    private isShowDialog;
-    constructor(id: string, initialValue?: string, text?: string, hint?: string, title?: string);
-    protected updateView(): void;
+    constructor(id: string, initialValue?: string, title?: string, hint?: string);
+    protected buildDisplayText(): string;
     protected createView(context: any): void;
+    protected updateView(): void;
     protected emitValue(value: any): void;
     onValueChange(handler: (value: string) => void): void;
     private showDialog;
     setText(text: string): void;
 }
+export {};

@@ -1,4 +1,5 @@
 export declare class LogViewWindow {
+    private menu;
     private context;
     private windowManager;
     private theme;
@@ -8,6 +9,8 @@ export declare class LogViewWindow {
     private titleDragHandle;
     private logView;
     private isCreated;
+    private isCreating;
+    private isAttached;
     isLogWindowVisible: boolean;
     private _loggerUnsub;
     private _logMaxLinesCache;
@@ -16,11 +19,21 @@ export declare class LogViewWindow {
     private _logSize;
     private _logPending;
     private _logFlushScheduled;
-    constructor(context: any, theme: any, logMaxLines?: number);
+    private _onCloseButtonClick;
+    private width?;
+    private height?;
+    lastTouchX: any;
+    lastTouchY: any;
+    constructor(context: any, theme: any, menu: any, logMaxLines?: number, onCloseButtonClick?: () => void);
+    setOnCloseButtonClick(callback: (() => void) | null): void;
     private bindLoggerToLogViewOnce;
     private addLogToView;
-    createWindowOnce(): void;
-    private bindDragForHeader;
+    private buildWindowType;
+    private createWindowOnce;
+    private attachWindowIfNeeded;
+    private addDragListener;
+    private updatePosition;
     openLogWindow(): void;
     closeLogWindow(): void;
+    destroy(): void;
 }
