@@ -30,6 +30,7 @@ Java.perform(() => {
     logMaxLines: 50,
     iconBase64: iconBase64,
     title: "综合测试用例",
+    version: "v2.2.1",
     tabs: [
       { id: "basic", label: "基础组件" },
       { id: "form", label: "表单组件" },
@@ -106,12 +107,7 @@ Java.perform(() => {
   menu.addComponent(formCategory, "form");
 
   // TextInput - 用户名输入
-  const usernameInput = new TextInput(
-    "username",
-    "",
-    "用户名",
-    "请输入用户名",
-  );
+  const usernameInput = new TextInput("username", "", "用户名", "请输入用户名");
   usernameInput.onValueChange((value: string) => {
     menu.logger.info(`用户名输入: ${value}`);
     menu.toast(`用户名设置为: ${value}`);
@@ -131,24 +127,14 @@ Java.perform(() => {
   menu.addComponent(usernameDisplay, "form");
 
   // TextInput - 密码输入
-  const passwordInput = new TextInput(
-    "password",
-    "",
-    "密码",
-    "请输入密码",
-  );
+  const passwordInput = new TextInput("password", "", "密码", "请输入密码");
   passwordInput.onValueChange((value: string) => {
     menu.logger.info(`密码输入: ${value.length} 个字符`);
   });
   menu.addComponent(passwordInput, "form");
 
   // TextInput - 备注输入（多行）
-  const notesInput = new TextInput(
-    "notes",
-    "",
-    "备注",
-    "请输入备注信息...",
-  );
+  const notesInput = new TextInput("notes", "", "备注", "请输入备注信息...");
   notesInput.onValueChange((value: string) => {
     const chars = value.length;
     const lines = value.split("\n").length;
@@ -167,12 +153,7 @@ Java.perform(() => {
   menu.addComponent(notesStats, "form");
 
   // NumberInput - 年龄
-  const ageInput = new NumberInput(
-    "age",
-    25,
-    "年龄",
-    "请输入年龄",
-  );
+  const ageInput = new NumberInput("age", 25, "年龄", "请输入年龄");
   ageInput.onValueChange((value: number) => {
     menu.logger.info(`年龄设置为: ${value}`);
     let category = "";
@@ -189,12 +170,7 @@ Java.perform(() => {
   menu.addComponent(ageDisplay, "form");
 
   // NumberInput - 数量（带步进）
-  const quantityInput = new NumberInput(
-    "quantity",
-    10,
-    "数量",
-    "请输入数量",
-  );
+  const quantityInput = new NumberInput("quantity", 10, "数量", "请输入数量");
   quantityInput.onValueChange((value: number) => {
     const price = 99.99;
     const total = (value * price).toFixed(2);
@@ -228,7 +204,7 @@ Java.perform(() => {
   // CheckBoxGroup - 爱好选择（多选）
   const hobbiesGroup = new CheckBoxGroup(
     "hobbies",
-    '爱好',
+    "爱好",
     [
       { id: "reading", label: "阅读" },
       { id: "music", label: "音乐" },
@@ -262,7 +238,7 @@ Java.perform(() => {
   // Selector - 城市选择
   const citySelector = new Selector(
     "city_selector",
-    '城市',
+    "城市",
     [
       { lable: "北京", code: "BJ" },
       { lable: "上海", code: "SH" },
@@ -286,7 +262,7 @@ Java.perform(() => {
   // Selector - 颜色选择
   const colorSelector = new Selector(
     "color_selector",
-    '颜色',
+    "颜色",
     [
       { lable: "红色", color: "#FF0000" },
       { lable: "绿色", color: "#00FF00" },
@@ -305,7 +281,7 @@ Java.perform(() => {
   // Selector - 语言选择
   const languageSelector = new Selector(
     "language_selector",
-    '语言',
+    "语言",
     [
       { lable: "简体中文", lang: "zh-CN" },
       { lable: "繁體中文", lang: "zh-TW" },
@@ -427,7 +403,7 @@ Java.perform(() => {
 
   const roleSelector = new Selector(
     "role_selector",
-    '角色',
+    "角色",
     [
       { lable: "管理员", role: "admin" },
       { lable: "普通用户", role: "user" },
@@ -453,7 +429,7 @@ Java.perform(() => {
 
   const logLevelSelector = new Selector(
     "log_level",
-    '等级',
+    "等级",
     [
       { lable: "调试 (DEBUG)", level: 0 },
       { lable: "信息 (INFO)", level: 1 },
@@ -511,12 +487,7 @@ Java.perform(() => {
   );
 
   // 用户名
-  const raterInput = new TextInput(
-    "rater_name",
-    "",
-    "评分人",
-    "请输入姓名",
-  );
+  const raterInput = new TextInput("rater_name", "", "评分人", "请输入姓名");
 
   // 评分滑块
   const ratingSlider = new Slider("rating_slider", "评分 (1-10)", 1, 10, 8, 1);
@@ -535,7 +506,7 @@ Java.perform(() => {
   // 评分标签
   const tagsGroup = new CheckBoxGroup(
     "rating_tags",
-    '评分',
+    "评分",
     [
       { id: "fast", label: "响应快" },
       { id: "stable", label: "稳定" },
@@ -596,7 +567,7 @@ Java.perform(() => {
   // 商品选择器
   const productSelector = new Selector(
     "product_selector",
-    '商品',
+    "商品",
     [
       { lable: "笔记本电脑", price: 5999 },
       { lable: "鼠标", price: 99 },
@@ -631,7 +602,7 @@ Java.perform(() => {
   // 运费选择器
   const shippingSelector = new Selector(
     "shipping_selector",
-    '运费',
+    "运费",
     [
       { lable: "普通快递 (¥10)", fee: 10 },
       { lable: "加急快递 (¥20)", fee: 20 },

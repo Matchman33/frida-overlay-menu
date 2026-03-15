@@ -6,6 +6,7 @@ export interface TabDefinition {
     label: string;
 }
 export interface FloatMenuOptions {
+    version?: string;
     width?: number;
     height?: number;
     x?: number;

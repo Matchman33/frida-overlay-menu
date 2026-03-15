@@ -15,6 +15,7 @@ export interface TabDefinition {
 }
 
 export interface FloatMenuOptions {
+  version?: string;
   width?: number;
   height?: number;
   x?: number;
@@ -87,6 +88,7 @@ export class FloatMenu {
       iconWidth: 200,
       iconHeight: 200,
       logMaxLines: 100,
+      version: "v1.0.0",
       title: "Frida Float Menu",
       theme: DarkNeonTheme,
       tabs: [],
@@ -248,7 +250,6 @@ export class FloatMenu {
               return true;
             }
           }
-        
         },
       },
     });
@@ -335,7 +336,8 @@ export class FloatMenu {
         parent: this.menuPanelView,
         logMaxLines: this.options.logMaxLines,
         title: this.options.title!,
-        version: "v2.4.0",
+        // version: "v2.4.0",
+        version: this.options.version!,
       },
       {
         onMinimize: () => {
@@ -452,9 +454,7 @@ export class FloatMenu {
     );
     this.iconContainerWin.addView(this.iconView);
 
-
     this.windowManager.addView(this.iconContainerWin, this.iconWindowParams);
-
 
     this.addDragListener(
       this.iconContainerWin,
@@ -642,7 +642,6 @@ export class FloatMenu {
     Java.scheduleOnMainThread(() => {
       const context = this.menuPanelView.getContext();
 
-
       const view = this.prepareComponentView(context, component);
 
       // Add to the appropriate tab container
@@ -657,7 +656,6 @@ export class FloatMenu {
       }
 
       this.bindComponentEvents(component);
-
     });
     // Logger.instance.debug(`Component ${id} added to tab ${targetTabId}`);
   }
