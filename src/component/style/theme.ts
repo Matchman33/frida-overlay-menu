@@ -29,28 +29,45 @@ export type Theme = {
 
 export const DarkNeonTheme: Theme = {
   colors: {
-    overlayBg: 0xcc0b0f1a | 0,
-    cardBg: 0xe61a1f2e | 0,
-    text: 0xffeaf0ff | 0,
-    subText: 0xff9aa4b2 | 0,
-    accent: 0xff2d6cff | 0,
+    // 主面板背景：更接近图里的深蓝黑，稍微带透明
+    overlayBg: 0xE60a1426 | 0,
+
+    // 卡片背景：比主面板稍亮一点，形成层级
+    cardBg: 0xee101b31 | 0,
+
+    // 主文字 / 次文字
+    text: 0xfff3f6ff | 0,
+    subText: 0xff8fa5c7 | 0,
+
+    // 主强调蓝
+    accent: 0xff0f6cff | 0,
     danger: 0xffef4444 | 0,
-    divider: 0x22ffffff | 0,
-    controlBg: 0x33111827 | 0,
-    controlStroke: 0x333b82f6 | 0,
 
-    accentSoft: 0x223b82f6 | 0,
-    accentStroke: 0x663b82f6 | 0,
+    // 线条 / 分隔线
+    divider: 0x263b5f93 | 0,
+    controlBg: 0x44111d33 | 0,
+    controlStroke: 0x2e4d79b8 | 0,
 
-    rowBg: 0x1a111827 | 0,
-    inputBg: 0x2a111827 | 0,
-    chipBg: 0x22111827 | 0,
+    // 软蓝背景 / 蓝色描边
+    accentSoft: 0x1a0f6cff | 0,
+    accentStroke: 0xaa1f63ff | 0,
 
-    infoCardBg: 0xdd1a2233 | 0,
-    noteCardBg: 0xcc12213f | 0,
-    sectionText: 0xffb7c2d6 | 0,
+    // 行背景 / 输入框 / chip
+    rowBg: 0x70111a2d | 0,
+    inputBg: 0x66101a2d | 0,
+    chipBg: 0x40111827 | 0,
+
+    // 信息块 / note 卡片
+    infoCardBg: 0xcc102347 | 0,
+    noteCardBg: 0xd0122344 | 0,
+
+    sectionText: 0xffb4c3dc | 0,
     buttonText: 0xffffffff | 0,
   },
-  radiusDp: { overlay: 16, card: 14, control: 14 },
-  textSp: { title: 14, body: 13, caption: 12 },
+
+  // 主面板圆角略大一点，更像图里那种壳
+  radiusDp: { overlay: 18, card: 14, control: 12 },
+
+  // 标题略大一点更接近截图
+  textSp: { title: 15, body: 13, caption: 12 },
 };

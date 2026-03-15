@@ -66,14 +66,30 @@ export function applyStyle(view: any, role: StyleRole, theme: Theme) {
   };
 
   switch (role) {
-    case "overlay":
-      rounded(theme.colors.overlayBg, theme.radiusDp.overlay, {
-        c: theme.colors.accentStroke ?? theme.colors.controlStroke,
-        wDp: 1,
-      });
+    case "overlay": {
+      const bg = GradientDrawable.$new();
+      bg.setShape(GradientDrawable.RECTANGLE.value);
+      bg.setCornerRadius(dpx(theme.radiusDp.overlay));
+
+      // 主背景：深蓝黑 + 轻透明
+      bg.setColor(theme.colors.overlayBg | 0);
+
+      // 外边框：更亮一点的蓝，做出“科技边框”
+      bg.setStroke(
+        dpx(1),
+        (theme.colors.accentStroke ?? theme.colors.controlStroke) | 0,
+      );
+
+      view.setBackgroundDrawable(bg);
+
       view.setPadding(dpx(12), dpx(12), dpx(12), dpx(12));
-      view.setElevation(dpx(10));
+      // 阴影稍微抬一点，别太重
+      try {
+        view.setElevation(dpx(12));
+      } catch (_e) {}
+
       break;
+    }
 
     case "card":
       rounded(theme.colors.cardBg, theme.radiusDp.card, {
