@@ -182,7 +182,6 @@ export class LogViewWindow {
         ViewGroupLayoutParams.MATCH_PARENT.value,
         ViewGroupLayoutParams.MATCH_PARENT.value,
       );
-      rootLp.gravity = Gravity.TOP.value | Gravity.START.value;
       panel.setLayoutParams(rootLp);
 
       // 主体背景：更接近图里的蓝黑科技风，同时增加透明度
@@ -373,7 +372,6 @@ export class LogViewWindow {
           LayoutParams.FLAG_NOT_TOUCH_MODAL.value,
         PixelFormat.TRANSLUCENT.value,
       );
-      // params.gravity.value = Gravity.TOP.value | Gravity.START.value;
 
       this.logView = logText;
       this.windowRoot = root;
@@ -430,20 +428,12 @@ export class LogViewWindow {
         root.setVisibility(View.GONE.value);
       } catch {}
 
-      // this.bindDragForHeader();
       this.addDragListener(
         this.titleDragHandle,
         this.windowRoot,
         this.windowParams,
         () => this.isLogWindowVisible,
-        // if (
-        //   !this.isLogWindowVisible ||
-        //   !this.isAttached ||
-        //   !this.windowRoot ||
-        //   !this.windowParams
-        // ) {
-        //   return false;
-        // }
+
       );
 
       this.bindLoggerToLogViewOnce();
@@ -494,83 +484,6 @@ export class LogViewWindow {
     });
   }
 
-  private bindDragForHeader(): void {
-    if (!this.titleDragHandle || !this.windowRoot || !this.windowParams) return;
-
-    const self = this;
-    const MotionEvent = API.MotionEvent;
-
-    let downRawX = 0;
-    let downRawY = 0;
-    let startX = 0;
-    let startY = 0;
-
-    this.titleDragHandle.setOnTouchListener(
-      Java.registerClass({
-        name:
-          "LogHeaderDrag" + Date.now() + Math.random().toString(36).slice(2),
-        implements: [API.OnTouchListener],
-        methods: {
-          onTouch: function (_v: any, event: any) {
-            try {
-              // 隐藏状态下不允许拖动，也不更新位置
-              if (
-                !self.isLogWindowVisible ||
-                !self.isAttached ||
-                !self.windowRoot ||
-                !self.windowParams
-              ) {
-                return false;
-              }
-
-              const action = event.getAction();
-
-              if (action === MotionEvent.ACTION_DOWN.value) {
-                downRawX = event.getRawX();
-                downRawY = event.getRawY();
-                startX = self.windowParams.x.value;
-                startY = self.windowParams.y.value;
-                return true;
-              }
-
-              if (action === MotionEvent.ACTION_MOVE.value) {
-                const dx = event.getRawX() - downRawX;
-                const dy = event.getRawY() - downRawY;
-
-                self.windowParams.x.value = (startX + dx) | 0;
-                self.windowParams.y.value = (startY + dy) | 0;
-
-                Java.scheduleOnMainThread(() => {
-                  try {
-                    if (
-                      self.isLogWindowVisible &&
-                      self.windowRoot &&
-                      self.windowParams &&
-                      self.isAttached
-                    ) {
-                      self.windowManager.updateViewLayout(
-                        self.windowRoot,
-                        self.windowParams,
-                      );
-                    }
-                  } catch (e) {
-                    Logger.instance.error("drag update failed: " + e);
-                  }
-                });
-
-                return true;
-              }
-
-              return false;
-            } catch (e) {
-              Logger.instance.error("header touch failed: " + e);
-              return false;
-            }
-          },
-        },
-      }).$new(),
-    );
-  }
 
   private addDragListener(
     targetView: any,
@@ -580,7 +493,6 @@ export class LogViewWindow {
   ) {
     const OnTouchListener = API.OnTouchListener;
     const MotionEvent = API.MotionEvent;
-    // const isShow = isShowing();
     targetView.setClickable(true);
     const getBounds = () => {
       const w = this.width!;

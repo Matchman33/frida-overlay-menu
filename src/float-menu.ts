@@ -248,18 +248,7 @@ export class FloatMenu {
               return true;
             }
           }
-          // if (
-          //   action === MotionEvent.ACTION_UP.value ||
-          //   action === MotionEvent.ACTION_CANCEL.value
-          // ) {
-          //   // ✅ 如果你需要“点击”功能，这里判断：
-          //   if (!isDragging) {
-
-          //   }
-          //   return true;
-          // }
-
-          // return false;
+        
         },
       },
     });
@@ -463,10 +452,9 @@ export class FloatMenu {
     );
     this.iconContainerWin.addView(this.iconView);
 
-    // Java.scheduleOnMainThread(() => {
-    // // 添加到 window manager
+
     this.windowManager.addView(this.iconContainerWin, this.iconWindowParams);
-    // });
+
 
     this.addDragListener(
       this.iconContainerWin,
@@ -650,12 +638,10 @@ export class FloatMenu {
       return;
     }
 
-    // // Window is shown, add component immediately
+    // Window is shown, add component immediately
     Java.scheduleOnMainThread(() => {
       const context = this.menuPanelView.getContext();
 
-      // component.init(context);
-      // const view = component.getView();
 
       const view = this.prepareComponentView(context, component);
 
@@ -671,16 +657,7 @@ export class FloatMenu {
       }
 
       this.bindComponentEvents(component);
-      // Bind events
-      // component.on("valueChanged", (value: any) => {
-      //   this.eventEmitter.emit("component:" + id + ":valueChanged", value);
-      // });
-      // component.on("action", (data: any) => {
-      //   this.eventEmitter.emit("component:" + id + ":action", data);
-      // });
-      // component.on("click", (data: any) => {
-      //   this.eventEmitter.emit("component:" + id + ":click", data);
-      // });
+
     });
     // Logger.instance.debug(`Component ${id} added to tab ${targetTabId}`);
   }

@@ -8,7 +8,6 @@ export const API = {
   get FrameLayoutParams() {
     return Java.use("android.widget.FrameLayout$LayoutParams");
   },
-  // const PopupWindow = Java.use("android.widget.PopupWindow");
   get PopupWindow() {
     return Java.use("android.widget.PopupWindow");
   },
