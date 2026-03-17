@@ -8,6 +8,7 @@ import { logicalToWindow, windowToLogical } from "./utils";
 import { TabsView } from "./component/views/tabs-view";
 import { HeaderView } from "./component/views/header-view";
 import { ConstantConfig } from "./constant-config";
+import Java from "frida-java-bridge";
 
 export interface TabDefinition {
   id: string;

@@ -2,6 +2,7 @@ import { API } from "../api";
 import { UIComponent } from "./ui-components";
 import { applyStyle, dp } from "./style/style";
 import { Logger } from "../logger";
+import Java from "frida-java-bridge";
 
 export class Collapsible extends UIComponent {
   private title: string;

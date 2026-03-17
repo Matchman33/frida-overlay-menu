@@ -30,9 +30,12 @@
     "hooking"
   ],
   "devDependencies": {
-    "@types/frida-gum": "^18.3.1",
-    "@types/node": "^18.14.0",
-    "typescript": "^5.0.0",
-    "frida-compile": "^19.0.4"
+    "@types/frida-gum": "^19.0.1",
+    "@types/node": "^24.0.10",
+    "frida-compile": "^19.0.4",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "frida-java-bridge": "^7.0.13"
   }
 }

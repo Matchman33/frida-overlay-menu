@@ -1,3 +1,4 @@
+import Java from "frida-java-bridge";
 import { EventEmitter } from "../event-emitter";
 import { FloatMenu } from "../float-menu";
 import { applyStyle } from "./style/style";

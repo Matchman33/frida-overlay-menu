@@ -1,3 +1,4 @@
+import Java from "frida-java-bridge";
 import { API } from "../../api";
 import { Logger } from "../../logger";
 import { dp } from "../style/style";

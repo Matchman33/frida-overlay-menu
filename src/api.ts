@@ -1,3 +1,5 @@
+import Java from "frida-java-bridge";
+
 export const API = {
   get ImageView() {
     return Java.use("android.widget.ImageView");
