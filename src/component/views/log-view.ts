@@ -439,9 +439,7 @@ export class LogViewWindow {
 
       this.bindLoggerToLogViewOnce();
 
-      Logger.instance.debug(
-        `log window created: width=${width}, height=${height}, x=${params.x.value}, y=${params.y.value}`,
-      );
+
     } catch (e) {
       Logger.instance.error("create log window ui failed: " + e);
       this.isCreated = false;
@@ -465,9 +463,7 @@ export class LogViewWindow {
       try {
         if (!self.windowRoot || !self.windowParams || self.isAttached) return;
 
-        Logger.instance.debug(
-          `attach log window: x=${self.windowParams.x.value}, y=${self.windowParams.y.value}, width=${self.windowParams.width.value}, height=${self.windowParams.height.value}, type=${self.windowParams.type.value}`,
-        );
+
 
         self.windowManager.addView(self.windowRoot, self.windowParams);
         self.isAttached = true;
@@ -478,7 +474,6 @@ export class LogViewWindow {
           } catch {}
         }
 
-        Logger.instance.info("attach log window success");
       } catch (e) {
         Logger.instance.error("attach log window failed: " + e);
       }
@@ -632,7 +627,6 @@ export class LogViewWindow {
           } catch {}
         }
 
-        Logger.instance.debug("open log window success");
       } catch (e) {
         Logger.instance.error("open log window failed: " + e);
       }
@@ -650,7 +644,6 @@ export class LogViewWindow {
       try {
         if (!self.windowRoot) return;
         self.windowRoot.setVisibility(View.GONE.value);
-        Logger.instance.debug("close log window success");
       } catch (e) {
         Logger.instance.error("close log window failed: " + e);
       }

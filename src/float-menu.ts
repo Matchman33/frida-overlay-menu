@@ -123,7 +123,6 @@ export class FloatMenu {
     );
     // Initialize tabs
     this.tabsView.initializeTabs();
-    this.logger.info("悬浮窗初始化完成,等待显示");
   }
 
   private addDragListener(

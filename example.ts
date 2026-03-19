@@ -18,6 +18,7 @@ import { DarkNeonTheme } from "./src/component/style/theme";
 import { Selector } from "./src/component/selector";
 import { Slider } from "./src/component/slider";
 import { ConstantConfig } from "./src/constant-config";
+import Java from "frida-java-bridge";
 ConstantConfig.isDev = true;
 Java.perform(() => {
   const options: FloatMenuOptions = {
@@ -217,7 +218,6 @@ Java.perform(() => {
   );
   hobbiesGroup.on("valueChanged", (values: any[]) => {
     menu.logger.info(`选中的爱好: ${JSON.stringify(values)}`);
-    // menu.toast(`选中的爱好: ${values.join(", ")}`);
     menu.setComponentValue(
       "hobbies_display",
       `选中的爱好：<b>${values.map((v) => v.label).join(", ") || "无"}</b>`,
