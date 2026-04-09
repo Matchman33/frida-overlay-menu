@@ -199,7 +199,8 @@ export class TabsView {
 
         // label
         const label = TextView.$new(this.context);
-        label.setText(JString.$new(tabInfo.label));
+        // label.setText(JString.$new(tabInfo.label));
+        label.setText.overload('java.lang.CharSequence').call(label, JString.$new(tabInfo.label));
         label.setSingleLine(true);
         label.setAllCaps(false);
         label.setTextSize(2, this.theme.textSp.body);

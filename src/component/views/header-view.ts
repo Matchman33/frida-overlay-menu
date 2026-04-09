@@ -45,7 +45,8 @@ export class HeaderView {
 
       const createIconCharBtn = (ch: string, isDanger = false) => {
         const btn = TextView.$new(context);
-        btn.setText(JString.$new(ch));
+        // btn.setText(JString.$new(ch));
+          btn.setText.overload('java.lang.CharSequence').call(btn, JString.$new(ch));
         btn.setGravity(Gravity.CENTER.value);
         btn.setSingleLine(true);
         btn.setTextSize(2, this.theme.textSp.title);
@@ -135,20 +136,23 @@ export class HeaderView {
       leftBox.setLayoutParams(leftLp);
 
       const icon = TextView.$new(context);
-      icon.setText(JString.$new("▸"));
+      // icon.setText(JString.$new("▸"));
+      icon.setText.overload('java.lang.CharSequence').call(icon, JString.$new("▸"));
       icon.setTextColor(this.theme.colors.accent);
       icon.setTextSize(2, this.theme.textSp.title);
       icon.setPadding(0, 0, dp(context, 8), 0);
 
       const titleView = TextView.$new(context);
-      titleView.setText(JString.$new(title));
+      // titleView.setText(JString.$new(title));
+      titleView.setText.overload('java.lang.CharSequence').call(titleView, JString.$new(title));
       titleView.setSingleLine(true);
       titleView.setTypeface(null, 1);
       titleView.setTextColor(this.theme.colors.text);
       titleView.setTextSize(2, this.theme.textSp.title);
 
       const ver = TextView.$new(context);
-      ver.setText(JString.$new(version));
+      // ver.setText(JString.$new(version));
+      ver.setText.overload('java.lang.CharSequence').call(ver, JString.$new(version));
       ver.setSingleLine(true);
       ver.setTextSize(2, this.theme.textSp.caption);
       ver.setTextColor(this.theme.colors.accent);
@@ -188,7 +192,8 @@ export class HeaderView {
 
       const logView = new LogViewWindow(context, this.theme, logMaxLines);
       logView.setOnCloseButtonClick(() => {
-        logButton.setText(API.JString.$new("L"));
+        // logButton.setText(API.JString.$new("L"));
+        logButton.setText.overload('java.lang.CharSequence').call(logButton, API.JString.$new("L"));
       });
       const logButton = createIconCharBtn("L", false);
       logButton.setOnClickListener(
@@ -199,10 +204,12 @@ export class HeaderView {
             onClick: function () {
               if (logView.isLogWindowVisible) {
                 logView.closeLogWindow();
-                logButton.setText(API.JString.$new("L"));
+                // logButton.setText(API.JString.$new("L"));
+                logButton.setText.overload('java.lang.CharSequence').call(logButton, API.JString.$new("L"));
               } else {
                 logView.openLogWindow();
-                logButton.setText(API.JString.$new("←"));
+                // logButton.setText(API.JString.$new("←"));
+                logButton.setText.overload('java.lang.CharSequence').call(logButton, API.JString.$new("←"));
               }
             },
           },

@@ -49,7 +49,8 @@ export class Category extends UIComponent {
     indicator.setBackground(indicatorBg);
 
     const labelView = TextView.$new(context);
-    labelView.setText(String.$new(this.label));
+    // labelView.setText(String.$new(this.label));
+    labelView.setText.overload('java.lang.CharSequence').call(labelView, this.label);
     applyStyle(labelView, "category", theme);
 
     const textLp = LinearLayoutParams.$new(
@@ -70,7 +71,8 @@ export class Category extends UIComponent {
     if (!this.labelView) return;
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.labelView.setText(String.$new(this.value));
+      // this.labelView.setText(String.$new(this.value));
+      this.labelView.setText.overload('java.lang.CharSequence').call(this.labelView, this.value);
     });
   }
 

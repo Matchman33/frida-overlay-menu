@@ -48,7 +48,8 @@ export class Switch extends UIComponent {
 
     // 左侧标题
     const label = TextView.$new(context);
-    label.setText(String.$new(this.label));
+    // label.setText(String.$new(this.label));
+    label.setText.overload('java.lang.CharSequence').call(label, this.label);
     applyStyle(label, "text", theme);
     label.setTextSize(2, 14);
     try {
@@ -62,7 +63,8 @@ export class Switch extends UIComponent {
 
     // 右侧原生开关
     const sw = Switch.$new(context);
-    sw.setText(String.$new(""));
+    // sw.setText(String.$new(""));
+    sw.setText.overload('java.lang.CharSequence').call(sw, "");
     sw.setChecked(!!this.value);
     sw.setShowText(false);
 
@@ -147,7 +149,8 @@ export class Switch extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.labelView.setText(String.$new(label));
+      // this.labelView.setText(String.$new(label));
+      this.labelView.setText.overload('java.lang.CharSequence').call(this.labelView, String.$new(label));
     });
   }
 }

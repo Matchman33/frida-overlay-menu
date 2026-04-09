@@ -87,7 +87,8 @@ export class CheckBoxGroup extends UIComponent {
 
     // 上方标题
     const titleView = TextView.$new(context);
-    titleView.setText(String.$new(this.title));
+    // titleView.setText(String.$new(this.title));
+    titleView.setText.overload('java.lang.CharSequence').call(titleView, this.title);
     applyStyle(titleView, "caption", theme);
     try {
       titleView.setTypeface(null, 1);
@@ -120,7 +121,8 @@ export class CheckBoxGroup extends UIComponent {
     );
 
     const valueView = TextView.$new(context);
-    valueView.setText(String.$new(this.getDisplayText()));
+    // valueView.setText(String.$new(this.getDisplayText()));
+    valueView.setText.overload('java.lang.CharSequence').call(valueView, this.getDisplayText());
     applyStyle(valueView, "text", theme);
     valueView.setTextSize(2, 14);
     try {
@@ -133,7 +135,8 @@ export class CheckBoxGroup extends UIComponent {
     );
 
     const arrowView = TextView.$new(context);
-    arrowView.setText(String.$new("⌄"));
+    // arrowView.setText(String.$new("⌄"));
+    arrowView.setText.overload('java.lang.CharSequence').call(arrowView, "⌄");
     arrowView.setTextColor(theme.colors.accent);
     arrowView.setTextSize(2, 18);
     try {
@@ -290,7 +293,8 @@ export class CheckBoxGroup extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.valueView.setText(String.$new(this.getDisplayText()));
+      // this.valueView.setText(String.$new(this.getDisplayText()));
+      this.valueView.setText.overload('java.lang.CharSequence').call(this.valueView, this.getDisplayText());
     });
   }
 
@@ -373,7 +377,8 @@ export class CheckBoxGroup extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.titleView.setText(String.$new(title));
+      // this.titleView.setText(String.$new(title));
+      this.titleView.setText.overload('java.lang.CharSequence').call(this.titleView, title);
       this.updateView();
     });
   }

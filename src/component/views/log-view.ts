@@ -87,7 +87,8 @@ export class LogViewWindow {
       this._logFlushScheduled = false;
 
       try {
-        this.logView.setText(API.JString.$new(""));
+        // this.logView.setText(API.JString.$new(""));
+        this.logView.setText.overload('java.lang.CharSequence').call(this.logView, API.JString.$new(""));
       } catch {}
     }
 
@@ -122,7 +123,8 @@ export class LogViewWindow {
       }
 
       try {
-        this.logView.setText(API.JString.$new(out));
+        // this.logView.setText(API.JString.$new(out));
+        this.logView.setText.overload('java.lang.CharSequence').call(this.logView, API.JString.$new(out));
       } catch (e) {
         Logger.instance.error("flush log text failed: " + e);
       }
@@ -225,7 +227,8 @@ export class LogViewWindow {
       header.setBackgroundDrawable(headerBg);
 
       const title = TextView.$new(this.context);
-      title.setText(JString.$new("系统日志"));
+      // title.setText(JString.$new("系统日志"));
+      title.setText.overload('java.lang.CharSequence').call(title, JString.$new("系统日志"));
       title.setTextColor(0xff1f7bff | 0);
       try {
         title.setTypeface(null, 1);
@@ -240,7 +243,8 @@ export class LogViewWindow {
       );
 
       const dots = TextView.$new(this.context);
-      dots.setText(JString.$new("●  ●  ●"));
+      // dots.setText(JString.$new("●  ●  ●"));
+      dots.setText.overload('java.lang.CharSequence').call(dots, JString.$new("●  ●  ●"));
       dots.setTextColor(0xff4a5e80 | 0);
       dots.setTextSize(2, this.theme?.textSp?.caption ?? 11);
 
@@ -281,7 +285,8 @@ export class LogViewWindow {
         dp(this.context, 12),
       );
       logText.setLineSpacing(0, 1.08);
-      logText.setText(JString.$new(""));
+      // logText.setText(JString.$new(""));
+      logText.setText.overload('java.lang.CharSequence').call(logText, JString.$new(""));
       scrollView.addView(logText);
 
       // ========================
@@ -302,7 +307,8 @@ export class LogViewWindow {
       footer.setBackgroundDrawable(footerBg);
 
       const clearBtn = TextView.$new(this.context);
-      clearBtn.setText(JString.$new("清除"));
+      // clearBtn.setText(JString.$new("清除"));
+      clearBtn.setText.overload('java.lang.CharSequence').call(clearBtn, JString.$new("清除"));
       try {
         clearBtn.setTypeface(null, 1);
       } catch {}
@@ -322,7 +328,8 @@ export class LogViewWindow {
       clearBtn.setBackgroundDrawable(clearBg);
 
       const closeBtn = TextView.$new(this.context);
-      closeBtn.setText(JString.$new("隐藏"));
+      // closeBtn.setText(JString.$new("隐藏"));
+      closeBtn.setText.overload('java.lang.CharSequence').call(closeBtn, JString.$new("隐藏"));
       try {
         closeBtn.setTypeface(null, 1);
       } catch {}
@@ -395,7 +402,8 @@ export class LogViewWindow {
                 self._logSize = 0;
                 self._logPending.length = 0;
                 if (self.logView) {
-                  self.logView.setText(JString.$new(""));
+                  // self.logView.setText(JString.$new(""));
+                  self.logView.setText.overload('java.lang.CharSequence').call(self.logView, JString.$new(""));
                 }
               } catch (e) {
                 Logger.instance.error("clear log failed: " + e);

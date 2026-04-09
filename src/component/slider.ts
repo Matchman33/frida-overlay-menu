@@ -51,7 +51,8 @@ export class Slider extends UIComponent {
 
     // Label TextView
     const labelView = TextView.$new(context);
-    labelView.setText(String.$new(this.label));
+    // labelView.setText(String.$new(this.label));
+    labelView.setText.overload('java.lang.CharSequence').call(labelView, this.label);
     labelView.setTextColor(Color.WHITE.value);
     labelView.setTextSize(14);
     labelView.setLayoutParams(
@@ -64,7 +65,8 @@ export class Slider extends UIComponent {
 
     // Value TextView (shows current value)
     const valueView = TextView.$new(context);
-    valueView.setText(String.$new(this.value.toString()));
+    // valueView.setText(String.$new(this.value.toString()));
+    valueView.setText.overload('java.lang.CharSequence').call(valueView, String.$new(this.value.toString()));
     valueView.setTextColor(Color.WHITE.value);
     valueView.setTextSize(14);
     valueView.setLayoutParams(
@@ -129,7 +131,8 @@ export class Slider extends UIComponent {
             Java.scheduleOnMainThread(() => {
               const valueView = (self.view as any).valueView;
               if (valueView) {
-                valueView.setText(String.$new(newValue.toString()));
+                // valueView.setText(String.$new(newValue.toString()));
+                valueView.setText.overload('java.lang.CharSequence').call(valueView, String.$new(newValue.toString()));
               }
             });
             self.emit("valueChanged", newValue);
@@ -166,7 +169,8 @@ export class Slider extends UIComponent {
       }
       if (valueView) {
         const String = API.JString;
-        valueView.setText(String.$new(this.value.toString()));
+        // valueView.setText(String.$new(this.value.toString()));
+        valueView.setText.overload('java.lang.CharSequence').call(valueView, String.$new(this.value.toString()));
       }
     });
   }
@@ -186,7 +190,8 @@ export class Slider extends UIComponent {
       const labelView = (this.view as any).labelView;
       if (labelView) {
         const String = API.JString;
-        labelView.setText(String.$new(label));
+        // labelView.setText(String.$new(label));
+        labelView.setText.overload('java.lang.CharSequence').call(labelView, String.$new(label));
       }
     });
   }

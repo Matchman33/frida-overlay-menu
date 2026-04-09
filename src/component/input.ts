@@ -51,7 +51,8 @@ abstract class BaseInputButton extends UIComponent {
     applyStyle(root, "inputButton", this.menu.options.theme!);
 
     const labelView = TextView.$new(context);
-    labelView.setText(String.$new(this.buildDisplayText()));
+    // labelView.setText(String.$new(this.buildDisplayText()));
+    labelView.setText.overload('java.lang.CharSequence').call(labelView, this.buildDisplayText());
     applyStyle(labelView, "text", this.menu.options.theme!);
     labelView.setTextSize(2, 14);
     try {
@@ -64,7 +65,8 @@ abstract class BaseInputButton extends UIComponent {
     );
 
     const iconView = TextView.$new(context);
-    iconView.setText(String.$new("✎"));
+    // iconView.setText(String.$new("✎"));
+    iconView.setText.overload('java.lang.CharSequence').call(iconView, "✎");
     iconView.setTextColor(this.menu.options.theme!.colors.accent);
     iconView.setTextSize(2, 16);
     iconView.setGravity(Gravity.CENTER.value);
@@ -90,7 +92,8 @@ abstract class BaseInputButton extends UIComponent {
 
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.buttonLabelView.setText(String.$new(this.buildDisplayText()));
+      // this.buttonLabelView.setText(String.$new(this.buildDisplayText()));
+      this.buttonLabelView.setText.overload('java.lang.CharSequence').call(this.buttonLabelView, this.buildDisplayText());
     });
   }
 
@@ -173,7 +176,8 @@ export class NumberInput extends BaseInputButton {
             ? ""
             : String(this.value);
 
-        input.setText(JString.$new(text), TextViewBufferType.NORMAL.value);
+        // input.setText(JString.$new(text), TextViewBufferType.NORMAL.value);
+        input.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType').call(input, JString.$new(text), TextViewBufferType.NORMAL.value);
 
         // applyStyle(input, "inputField", this.menu.options.theme!);
         try {
@@ -367,10 +371,11 @@ export class TextInput extends BaseInputButton {
 
         const input = EditText.$new(context);
         input.setHint(String.$new(this.hint));
-        input.setText(
-          String.$new(this.value ?? ""),
-          TextViewBufferType.NORMAL.value,
-        );
+        // input.setText(
+        //   String.$new(this.value ?? ""),
+        //   TextViewBufferType.NORMAL.value,
+        // );
+        input.setText.overload('java.lang.CharSequence', 'android.widget.TextView$BufferType').call(input, String.$new(this.value ?? ""), TextViewBufferType.NORMAL.value);
         // applyStyle(input, "inputField", this.menu.options.theme!);
         const lp = LinearLayoutParams.$new(
           ViewGroupLayoutParams.MATCH_PARENT.value,

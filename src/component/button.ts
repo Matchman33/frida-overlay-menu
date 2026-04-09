@@ -28,7 +28,8 @@ export class Button extends UIComponent {
     const Gravity = API.Gravity;
 
     this.view = Button.$new(context);
-    this.view.setText(String.$new(this.label));
+    // this.view.setText(String.$new(this.label));
+    this.view.setText.overload('java.lang.CharSequence').call(this.view, this.label);
 
     applyStyle(
       this.view,
@@ -75,7 +76,8 @@ export class Button extends UIComponent {
     }
     Java.scheduleOnMainThread(() => {
       const String = API.JString;
-      this.view.setText(String.$new(label));
+      // this.view.setText(String.$new(label));
+      this.view.setText.overload('java.lang.CharSequence').call(this.view, label);
     });
   }
 

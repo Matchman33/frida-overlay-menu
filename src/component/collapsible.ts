@@ -85,7 +85,8 @@ export class Collapsible extends UIComponent {
     // Arrow (TextView)
     const arrowText = this.expanded ? "⌃" : "›";
     const arrowTextView = TextView.$new(context);
-    arrowTextView.setText(String.$new(arrowText));
+    // arrowTextView.setText(String.$new(arrowText));
+    arrowTextView.setText.overload('java.lang.CharSequence').call(arrowTextView, arrowText);
     arrowTextView.setSingleLine(true);
     arrowTextView.setTextColor(theme.colors.subText);
     arrowTextView.setTextSize(2, 20);
@@ -96,7 +97,8 @@ export class Collapsible extends UIComponent {
 
     // Title text
     const titleView = TextView.$new(context);
-    titleView.setText(String.$new(this.title));
+    // titleView.setText(String.$new(this.title));
+    titleView.setText.overload('java.lang.CharSequence').call(titleView, this.title);
     titleView.setSingleLine(true);
     applyStyle(titleView, "text", this.menu.options.theme!);
     titleView.setTypeface(null, 1); // BOLD
@@ -227,7 +229,8 @@ export class Collapsible extends UIComponent {
 
       if (this.arrowView) {
         const arrowText = this.expanded ? "⌃" : "›";
-        this.arrowView.setText(String.$new(arrowText));
+        // this.arrowView.setText(String.$new(arrowText));
+        this.arrowView.setText.overload('java.lang.CharSequence').call(this.arrowView, arrowText);
       }
     });
   }
@@ -266,7 +269,8 @@ export class Collapsible extends UIComponent {
       const titleView = (this.view as any).titleView;
       if (titleView) {
         const String = API.JString;
-        titleView.setText(String.$new(title));
+        // titleView.setText(String.$new(title));
+        titleView.setText.overload('java.lang.CharSequence').call(titleView, title);
       }
     });
   }
