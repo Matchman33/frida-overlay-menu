@@ -1,8 +1,11 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
 import { applyStyle, dp } from "./style/style.js";
 import { UIComponent } from "./ui-components.js";
+import { deferSafe } from "../runtime/safe-runtime.js";
+import { getOverlayWindowType } from "../android-runtime.js";
+import { createJavaListener } from "../android-listener.js";
 
 export class Selector extends UIComponent {
   private title: string;
@@ -132,21 +135,19 @@ export class Selector extends UIComponent {
     triggerRow.addView(arrowView);
 
     const self = this;
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.MySelectorTriggerClickListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnClickListener],
-      methods: {
-        onClick: function (_v: any) {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: OnClickListener,
+      callbacks: {
+        onClick: (_v: any) => {
           self.showSelectDialog();
         },
       },
     });
+    this.own(() => clickListener.dispose());
 
     triggerRow.setClickable(true);
-    triggerRow.setOnClickListener(clickListener.$new());
+    triggerRow.setOnClickListener(clickListener.instance);
 
     root.addView(titleView);
     root.addView(triggerRow);
@@ -190,27 +191,23 @@ export class Selector extends UIComponent {
         const WindowManagerLayoutParams = Java.use(
           "android.view.WindowManager$LayoutParams",
         );
-        const BuildVersion = Java.use("android.os.Build$VERSION");
 
         const labels = this.items.map((item) => String.$new(item.label));
         const javaItems = Java.array("java.lang.CharSequence", labels);
 
         const self = this;
-        const itemClickListener = Java.registerClass({
-          name:
-            "com.frida.MySelectorDialogClickListener" +
-            Date.now() +
-            Math.random().toString(36).substring(6),
-          implements: [DialogInterfaceOnClickListener],
-          methods: {
-            onClick: function (dialog: any, which: number) {
+        const itemClickListener = createJavaListener({
+          key: "dialog-click",
+          interfaceClass: DialogInterfaceOnClickListener,
+          callbacks: {
+            onClick: (dialog: any, which: number) => {
               self.selectedIndex = which;
               self.value = self.items[which];
               self.refreshUi();
               self.emit("valueChanged", self.value);
 
               if (self.handler) {
-                setImmediate(() => self.handler!(self.value));
+                deferSafe(`Selector:${self.id}:valueChanged`, () => self.handler!(self.value));
               }
 
               try {
@@ -222,22 +219,25 @@ export class Selector extends UIComponent {
 
         const builder = AlertDialogBuilder.$new(this.context);
         builder.setTitle(String.$new(this.title));
-        builder.setItems(javaItems, itemClickListener.$new());
+        builder.setItems(javaItems, itemClickListener.instance);
 
         const dialog = builder.create();
+        const dismissListener = createJavaListener({
+          key: "dialog-dismiss",
+          interfaceClass: API.DialogInterfaceOnDismissListener,
+          callbacks: { onDismiss: () => releaseDialogListeners() },
+        });
+        const releaseDialogListeners = this.own(() => {
+          itemClickListener.dispose();
+          dismissListener.dispose();
+        });
+        dialog.setOnDismissListener(dismissListener.instance);
 
         // 设置为悬浮窗类型，避免 token 问题
         try {
           const window = dialog.getWindow();
           if (window) {
-            const sdkInt = BuildVersion.SDK_INT.value;
-            if (sdkInt >= 26) {
-              window.setType(
-                WindowManagerLayoutParams.TYPE_APPLICATION_OVERLAY.value,
-              );
-            } else {
-              window.setType(WindowManagerLayoutParams.TYPE_SYSTEM_ALERT.value);
-            }
+            window.setType(getOverlayWindowType(WindowManagerLayoutParams));
           }
         } catch (e) {
           Logger.instance.warn(

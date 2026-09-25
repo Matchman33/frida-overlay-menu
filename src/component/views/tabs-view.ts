@@ -1,9 +1,11 @@
-import Java from "frida-java-bridge";
+import Java from "../../java-runtime.js";
 import { API } from "../../api.js";
 import { EventEmitter } from "../../event-emitter.js";
 import { Logger } from "../../logger.js";
 import { dp } from "../style/style.js";
 import { Theme } from "../style/theme.js";
+import { createJavaListener } from "../../android-listener.js";
+import { ListenerRegistry } from "../../runtime/listener-registry.js";
 interface TabDefinition {
   id: string;
   label: string;
@@ -36,6 +38,7 @@ export class TabsView {
   tabScrollView: any;
   tabIndicatorView: any;
   private tabItemMap: Map<string, any> = new Map();
+  private readonly listeners = new ListenerRegistry();
 
   constructor(
     context: any,
@@ -234,22 +237,17 @@ export class TabsView {
         this.updateTabStyle(tabItem, tabId === this.activeTabId);
 
         // 点击切换：监听挂在 tabItem 上（点击区域更大）
-        const tabClickListener = Java.registerClass({
-          name:
-            "com.example.TabClickListener" +
-            Date.now() +
-            Math.random().toString(36).substring(6) +
-            "_" +
-            tabId,
-          implements: [OnClickListener],
-          methods: {
-            onClick: function () {
-              self.switchTab(tabId);
+        const tabClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: OnClickListener,
+          callbacks: {
+            onClick: () => {
+              self.selectTab(tabId);
             },
           },
         });
-
-        tabItem.setOnClickListener(tabClickListener.$new());
+        this.listeners.add("tabs", () => tabClickListener.dispose());
+        tabItem.setOnClickListener(tabClickListener.instance);
         tabContainer.addView(tabItem);
       }
       // this.tabView = outerScroll;
@@ -262,7 +260,7 @@ export class TabsView {
     }
   }
 
-  private switchTab(tabId: string): void {
+  public selectTab(tabId: string): void {
     if (!this.tabs.has(tabId) || tabId === this.activeTabId) return;
 
     const oldTabId = this.activeTabId;
@@ -339,14 +337,10 @@ export class TabsView {
       const scroll = this.tabScrollView;
 
       // ✅ 一定要等布局完成后再算 left/width
-      scroll.post(
-        Java.registerClass({
-          name:
-            "TabIndicatorPost_" +
-            Date.now() +
-            Math.random().toString(36).slice(2),
-          implements: [Java.use("java.lang.Runnable")],
-          methods: {
+      const runnable = createJavaListener({
+          key: "runnable",
+          interfaceClass: Java.use("java.lang.Runnable"),
+          callbacks: {
             run: () => {
               try {
                 const width = child.getWidth();
@@ -362,8 +356,9 @@ export class TabsView {
               } catch {}
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("tabs", () => runnable.dispose());
+      scroll.post(runnable.instance);
     } catch (e) {}
   }
   // private updateTabIndicator(activeTabId: string): void {
@@ -638,5 +633,20 @@ export class TabsView {
     }
 
     this.parentView.addView(tabRootsWrapper);
+  }
+
+  public destroy(): void {
+    this.listeners.clearAll();
+    this.eventEmitter.removeAllListeners();
+    this.tabItemMap.clear();
+    this.tabs.clear();
+    this.tabContainer = null;
+    this.tabView = null;
+    this.tabScrollView = null;
+    this.tabIndicatorView = null;
+    this.currentContentContainer = null;
+    this.currentScrollView = null;
+    this.parentView = null;
+    this.menuPanelView = null;
   }
 }

@@ -20,6 +20,8 @@ export declare class LogViewWindow {
     private _logPending;
     private _logFlushScheduled;
     private _onCloseButtonClick;
+    private enforceNonFocusableWindow;
+    private readonly listeners;
     private width?;
     private height?;
     lastTouchX: any;

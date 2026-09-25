@@ -1,6 +1,6 @@
-import Java from "frida-java-bridge";
+import Java from "./java-runtime.js";
 
-export const API = {
+export const API: Record<string, any> = {
   get ImageView() {
     return Java.use("android.widget.ImageView");
   },
@@ -89,6 +89,9 @@ export const API = {
   },
   get DialogInterfaceOnClickListener() {
     return Java.use("android.content.DialogInterface$OnClickListener");
+  },
+  get DialogInterfaceOnDismissListener() {
+    return Java.use("android.content.DialogInterface$OnDismissListener");
   },
   get AlertDialogBuilder() {
     return Java.use("android.app.AlertDialog$Builder");

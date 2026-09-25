@@ -27,13 +27,15 @@ export declare class TabsView {
     tabScrollView: any;
     tabIndicatorView: any;
     private tabItemMap;
+    private readonly listeners;
     constructor(context: any, theme: Theme, initTabs: TabDefinition[], activeTabId?: string);
     createTabView(parentView: any): void;
-    private switchTab;
+    selectTab(tabId: string): void;
     private updateTabStyle;
     private updateTabIndicator;
     private refreshTabsUI;
     initializeTabs(): void;
     createTabContainer(): void;
+    destroy(): void;
 }
 export {};

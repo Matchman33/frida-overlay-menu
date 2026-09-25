@@ -5,6 +5,10 @@ export declare abstract class UIComponent {
     protected view: any;
     protected value: any;
     protected id: string;
+    private initialized;
+    private attached;
+    private disposed;
+    private disposers;
     protected menu: FloatMenu;
     constructor(id: string);
     setMenu(menu: FloatMenu): void;
@@ -13,12 +17,18 @@ export declare abstract class UIComponent {
     getValue(): any;
     getId(): string;
     setValue(value: any): void;
-    on(event: string, listener: (...args: any[]) => void): void;
+    on(event: string, listener: (...args: any[]) => void): () => void;
     off(event: string, listener: (...args: any[]) => void): void;
     protected emit(event: string, ...args: any[]): void;
     protected abstract createView(context: any): void;
-    init(context: any): void;
+    initialize(context: any, menu?: FloatMenu): void;
     protected abstract updateView(): void;
-    attach(): void;
+    protected own(dispose: () => void): () => void;
+    attach(_container?: any): void;
     detach(): void;
+    captureState(): any;
+    restoreState(state: any): void;
+    dispose(): void;
+    get isInitialized(): boolean;
+    get isAttached(): boolean;
 }

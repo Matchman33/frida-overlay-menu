@@ -1,9 +1,11 @@
-import Java from "frida-java-bridge";
+import Java from "../../java-runtime.js";
 import { API } from "../../api.js";
 import { Logger } from "../../logger.js";
 import { dp } from "../style/style.js";
 import { Theme } from "../style/theme.js";
 import { LogViewWindow } from "./log-view.js";
+import { createJavaListener } from "../../android-listener.js";
+import { ListenerRegistry } from "../../runtime/listener-registry.js";
 
 export interface HeaderViewOptions {
   context: any;
@@ -16,6 +18,8 @@ export interface HeaderViewOptions {
 export class HeaderView {
   private readonly theme: Theme;
   private headerDragView: any;
+  private logViewWindow: LogViewWindow | null = null;
+  private readonly listeners = new ListenerRegistry();
 
   constructor(theme: Theme) {
     this.theme = theme;
@@ -57,17 +61,14 @@ export class HeaderView {
         const lp = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
         btn.setLayoutParams(lp);
 
-        btn.setOnTouchListener(
-          Java.registerClass({
-            name:
-              "HeaderBtnTouch_" +
-              Date.now() +
-              Math.random().toString(36).slice(2),
-            implements: [Java.use("android.view.View$OnTouchListener")],
-            methods: {
-              onTouch: function (v: any, ev: any) {
+        const touchListener = createJavaListener({
+          key: "view-touch",
+          interfaceClass: API.OnTouchListener,
+          fallback: { onTouch: false },
+          callbacks: {
+              onTouch: (v: any, ev: any) => {
                 try {
-                  const MotionEvent = Java.use("android.view.MotionEvent");
+                  const MotionEvent = API.MotionEvent;
                   const action = ev.getAction();
                   if (action === MotionEvent.ACTION_DOWN.value) v.setAlpha(0.6);
                   else if (
@@ -80,8 +81,9 @@ export class HeaderView {
                 return false;
               },
             },
-          }).$new(),
-        );
+        });
+        this.listeners.add("header", () => touchListener.dispose());
+        btn.setOnTouchListener(touchListener.instance);
 
         const d = GradientDrawable.$new();
         d.setCornerRadius(BTN_RADIUS);
@@ -191,17 +193,17 @@ export class HeaderView {
       rightBox.setLayoutParams(rightLp);
 
       const logView = new LogViewWindow(context, this.theme, logMaxLines);
+      this.logViewWindow = logView;
       logView.setOnCloseButtonClick(() => {
         // logButton.setText(API.JString.$new("L"));
         logButton.setText.overload('java.lang.CharSequence').call(logButton, API.JString.$new("L"));
       });
       const logButton = createIconCharBtn("L", false);
-      logButton.setOnClickListener(
-        Java.registerClass({
-          name: "LogButtonClickListener" + Date.now(),
-          implements: [API.OnClickListener],
-          methods: {
-            onClick: function () {
+      const logClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: API.OnClickListener,
+          callbacks: {
+            onClick: () => {
               if (logView.isLogWindowVisible) {
                 logView.closeLogWindow();
                 // logButton.setText(API.JString.$new("L"));
@@ -213,34 +215,35 @@ export class HeaderView {
               }
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("header", () => logClickListener.dispose());
+      logButton.setOnClickListener(logClickListener.instance);
 
       const minButton = createIconCharBtn("—", false);
-      minButton.setOnClickListener(
-        Java.registerClass({
-          name: "MinButtonClickListener" + Date.now(),
-          implements: [API.OnClickListener],
-          methods: {
-            onClick: function () {
+      const minimizeClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: API.OnClickListener,
+          callbacks: {
+            onClick: () => {
               callbacks.onMinimize();
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("header", () => minimizeClickListener.dispose());
+      minButton.setOnClickListener(minimizeClickListener.instance);
 
       const hideButton = createIconCharBtn("X", true);
-      hideButton.setOnClickListener(
-        Java.registerClass({
-          name: "HideButtonClickListener" + Date.now(),
-          implements: [API.OnClickListener],
-          methods: {
-            onClick: function () {
+      const hideClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: API.OnClickListener,
+          callbacks: {
+            onClick: () => {
               callbacks.onHide();
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("header", () => hideClickListener.dispose());
+      hideButton.setOnClickListener(hideClickListener.instance);
 
       const lp1 = LinearLayoutParams.$new(BTN_SIZE, BTN_SIZE);
       lp1.setMargins(0, 0, dp(context, 4), 0);
@@ -269,5 +272,12 @@ export class HeaderView {
       Logger.instance.error("Failed to create header view: " + error);
       return null;
     }
+  }
+
+  public destroy(): void {
+    this.listeners.clearAll();
+    this.logViewWindow?.destroy();
+    this.logViewWindow = null;
+    this.headerDragView = null;
   }
 }

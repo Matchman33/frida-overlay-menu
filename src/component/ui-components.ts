@@ -1,4 +1,4 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { EventEmitter } from "../event-emitter.js";
 import { FloatMenu } from "../float-menu.js";
 import { applyStyle } from "./style/style.js";
@@ -9,6 +9,10 @@ export abstract class UIComponent {
   protected view: any; // Android View
   protected value: any;
   protected id: string;
+  private initialized = false;
+  private attached = false;
+  private disposed = false;
+  private disposers = new Set<() => void>();
 
   protected menu!: FloatMenu;
 
@@ -16,7 +20,7 @@ export abstract class UIComponent {
     this.id = id;
   }
 
-  public setMenu(menu: FloatMenu) {
+  public setMenu(menu: FloatMenu): void {
     this.menu = menu;
   }
   // 可选：给后续写通用样式留口子
@@ -47,15 +51,16 @@ export abstract class UIComponent {
    * Set value and update UI
    */
   public setValue(value: any): void {
+    if (this.disposed) throw new Error(`Component ${this.id} is disposed`);
     this.value = value;
-    this.updateView();
+    if (this.initialized) this.updateView();
   }
 
   /**
    * Register event listener
    */
-  public on(event: string, listener: (...args: any[]) => void): void {
-    this.emitter.on(event, listener);
+  public on(event: string, listener: (...args: any[]) => void): () => void {
+    return this.emitter.on(event, listener);
   }
 
   /**
@@ -80,8 +85,12 @@ export abstract class UIComponent {
   /**
    * Initialize the component with Android context
    */
-  public init(context: any): void {
+  public initialize(context: any, menu?: FloatMenu): void {
+    if (this.disposed) throw new Error(`Component ${this.id} is disposed`);
+    if (this.initialized) return;
+    if (menu) this.menu = menu;
     this.createView(context);
+    this.initialized = true;
   }
 
   /**
@@ -89,17 +98,65 @@ export abstract class UIComponent {
    */
   protected abstract updateView(): void;
 
+  protected own(dispose: () => void): () => void {
+    if (this.disposed) {
+      dispose();
+      return () => {};
+    }
+    let active = true;
+    const release = () => {
+      if (!active) return;
+      active = false;
+      this.disposers.delete(release);
+      dispose();
+    };
+    this.disposers.add(release);
+    return release;
+  }
+
   /**
    * Called when component is added to container
    */
-  public attach(): void {
-    // Override if needed
+  public attach(_container?: any): void {
+    if (this.disposed) throw new Error(`Component ${this.id} is disposed`);
+    this.attached = true;
   }
 
   /**
    * Called when component is removed
    */
   public detach(): void {
-    // Override if needed
+    this.attached = false;
+  }
+
+  public captureState(): any {
+    return this.value;
+  }
+
+  public restoreState(state: any): void {
+    this.setValue(state);
+  }
+
+  public dispose(): void {
+    if (this.disposed) return;
+    this.detach();
+    for (const dispose of Array.from(this.disposers).reverse()) {
+      try {
+        dispose();
+      } catch {}
+    }
+    this.disposers.clear();
+    this.emitter.removeAllListeners();
+    this.view = null;
+    this.initialized = false;
+    this.disposed = true;
+  }
+
+  public get isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  public get isAttached(): boolean {
+    return this.attached;
   }
 }

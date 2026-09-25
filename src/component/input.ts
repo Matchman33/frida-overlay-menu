@@ -1,8 +1,13 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
 import { applyStyle, dp } from "./style/style.js";
 import { UIComponent } from "./ui-components.js";
+import { getOverlayWindowType } from "../android-runtime.js";
+import {
+  createJavaListener,
+  disposeJavaListenerOwner,
+} from "../android-listener.js";
 
 function setDialogOverlayType(dialog: any) {
   try {
@@ -10,13 +15,7 @@ function setDialogOverlayType(dialog: any) {
     if (!window) return;
 
     const LayoutParams = API.LayoutParams;
-    const BuildVERSION = API.BuildVERSION;
-
-    if (BuildVERSION.SDK_INT.value >= 26) {
-      window.setType(LayoutParams.TYPE_APPLICATION_OVERLAY.value);
-    } else {
-      window.setType(LayoutParams.TYPE_PHONE.value);
-    }
+    window.setType(getOverlayWindowType(LayoutParams));
   } catch (e) {
     Logger.instance.warn(`[Input] Failed to set dialog overlay type: ${e}`);
   }
@@ -98,6 +97,7 @@ abstract class BaseInputButton extends UIComponent {
   }
 
   protected abstract buildDisplayText(): string;
+
 }
 
 export class NumberInput extends BaseInputButton {
@@ -129,23 +129,21 @@ export class NumberInput extends BaseInputButton {
     this.createBaseView(context);
 
     const self = this;
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.NumberInputButtonClick" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [API.OnClickListener],
-      methods: {
-        onClick: function () {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: API.OnClickListener,
+      callbacks: {
+        onClick: () => {
           if (self.isShowDialog) return;
           self.isShowDialog = true;
           self.showDialog(context);
         },
       },
     });
+    this.own(() => clickListener.dispose());
 
     this.buttonView.setClickable(true);
-    this.buttonView.setOnClickListener(clickListener.$new());
+    this.buttonView.setOnClickListener(clickListener.instance);
   }
 
   protected updateView(): void {
@@ -205,17 +203,19 @@ export class NumberInput extends BaseInputButton {
         builder.setView(container);
 
         const self = this;
+        const dialogListenerOwner = `NumberInput:${this.id}:dialog:${Date.now()}:${Math.random()}`;
+        const releaseDialogListeners = this.own(() =>
+          disposeJavaListenerOwner(dialogListenerOwner),
+        );
 
         builder.setPositiveButton(
           JString.$new("确认"),
-          Java.registerClass({
-            name:
-              "com.frida.NumberInputOK" +
-              Date.now() +
-              Math.random().toString(36).substring(6),
-            implements: [API.DialogInterfaceOnClickListener],
-            methods: {
-              onClick: function (_dialog: any, _which: number) {
+          createJavaListener({
+            key: "dialog-click",
+            owner: dialogListenerOwner,
+            interfaceClass: API.DialogInterfaceOnClickListener,
+            callbacks: {
+              onClick: (_dialog: any, _which: number) => {
                 self.isShowDialog = false;
                 try {
                   const raw =
@@ -236,26 +236,33 @@ export class NumberInput extends BaseInputButton {
                 }
               },
             },
-          }).$new(),
+          }).instance,
         );
 
         builder.setNegativeButton(
           JString.$new("取消"),
-          Java.registerClass({
-            name:
-              "com.frida.NumberInputCancel" +
-              Date.now() +
-              Math.random().toString(36).substring(6),
-            implements: [API.DialogInterfaceOnClickListener],
-            methods: {
-              onClick: function (_dialog: any, _which: number) {
+          createJavaListener({
+            key: "dialog-click",
+            owner: dialogListenerOwner,
+            interfaceClass: API.DialogInterfaceOnClickListener,
+            callbacks: {
+              onClick: (_dialog: any, _which: number) => {
                 self.isShowDialog = false;
               },
             },
-          }).$new(),
+          }).instance,
         );
 
         const dialog = builder.create();
+        const dismissListener = createJavaListener({
+          key: "dialog-dismiss",
+          owner: dialogListenerOwner,
+          interfaceClass: API.DialogInterfaceOnDismissListener,
+          callbacks: {
+            onDismiss: releaseDialogListeners,
+          },
+        });
+        dialog.setOnDismissListener(dismissListener.instance);
         setDialogOverlayType(dialog);
         dialog.show();
       } catch (e) {
@@ -324,23 +331,21 @@ export class TextInput extends BaseInputButton {
     this.createBaseView(context);
 
     const self = this;
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.TextInputButtonClick" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [API.OnClickListener],
-      methods: {
-        onClick: function () {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: API.OnClickListener,
+      callbacks: {
+        onClick: () => {
           if (self.isShowDialog) return;
           self.isShowDialog = true;
           self.showDialog(context);
         },
       },
     });
+    this.own(() => clickListener.dispose());
 
     this.buttonView.setClickable(true);
-    this.buttonView.setOnClickListener(clickListener.$new());
+    this.buttonView.setOnClickListener(clickListener.instance);
   }
 
   protected updateView(): void {
@@ -394,17 +399,19 @@ export class TextInput extends BaseInputButton {
         builder.setView(container);
 
         const self = this;
+        const dialogListenerOwner = `TextInput:${this.id}:dialog:${Date.now()}:${Math.random()}`;
+        const releaseDialogListeners = this.own(() =>
+          disposeJavaListenerOwner(dialogListenerOwner),
+        );
 
         builder.setPositiveButton(
           String.$new("确认"),
-          Java.registerClass({
-            name:
-              "com.frida.TextInputOK" +
-              Date.now() +
-              Math.random().toString(36).substring(6),
-            implements: [API.DialogInterfaceOnClickListener],
-            methods: {
-              onClick: function (_dialog: any, _which: number) {
+          createJavaListener({
+            key: "dialog-click",
+            owner: dialogListenerOwner,
+            interfaceClass: API.DialogInterfaceOnClickListener,
+            callbacks: {
+              onClick: (_dialog: any, _which: number) => {
                 self.isShowDialog = false;
                 const text =
                   Java.cast(
@@ -417,26 +424,33 @@ export class TextInput extends BaseInputButton {
                 if (self.handler) self.handler(self.value as string);
               },
             },
-          }).$new(),
+          }).instance,
         );
 
         builder.setNegativeButton(
           String.$new("取消"),
-          Java.registerClass({
-            name:
-              "com.frida.TextInputCancel" +
-              Date.now() +
-              Math.random().toString(36).substring(6),
-            implements: [API.DialogInterfaceOnClickListener],
-            methods: {
-              onClick: function (_dialog: any, _which: number) {
+          createJavaListener({
+            key: "dialog-click",
+            owner: dialogListenerOwner,
+            interfaceClass: API.DialogInterfaceOnClickListener,
+            callbacks: {
+              onClick: (_dialog: any, _which: number) => {
                 self.isShowDialog = false;
               },
             },
-          }).$new(),
+          }).instance,
         );
 
         const dialog = builder.create();
+        const dismissListener = createJavaListener({
+          key: "dialog-dismiss",
+          owner: dialogListenerOwner,
+          interfaceClass: API.DialogInterfaceOnDismissListener,
+          callbacks: {
+            onDismiss: releaseDialogListeners,
+          },
+        });
+        dialog.setOnDismissListener(dismissListener.instance);
         setDialogOverlayType(dialog);
         dialog.show();
       } catch (e) {

@@ -15,8 +15,14 @@ type LogItem = {
 type LogListener = (items: LogItem[]) => void;
 
 export class Logger {
-  on(arg0: string, arg1: (level: LogLevel, message: string) => void) {
-    throw new Error("Method not implemented.");
+  on(
+    event: string,
+    listener: (level: LogLevel, message: string) => void,
+  ): () => void {
+    if (event !== "log") throw new Error(`Unsupported logger event: ${event}`);
+    return this.onLog((items) => {
+      for (const item of items) listener(item.level, item.message);
+    }, false);
   }
   // ====== 全局单例：外部任何地方都能获取到 ======
   private static _instance: Logger | null = null;
@@ -216,6 +222,10 @@ export class Logger {
 
     // 入 pending，走批量派发（避免 UI 每条刷新）
     this.pending.push(item);
+    const pendingLimit = this.maxBuffer * 2;
+    if (this.pending.length > pendingLimit) {
+      this.pending.splice(0, this.pending.length - pendingLimit);
+    }
     this.scheduleFlush();
   }
 

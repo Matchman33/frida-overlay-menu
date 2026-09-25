@@ -1,7 +1,9 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { applyStyle, dp } from "./style/style.js";
 import { UIComponent } from "./ui-components.js";
+import { deferSafe } from "../runtime/safe-runtime.js";
+import { createJavaListener } from "../android-listener.js";
 
 export class Switch extends UIComponent {
   private label: string;
@@ -91,41 +93,36 @@ export class Switch extends UIComponent {
 
     const self = this;
 
-    const checkedListener = Java.registerClass({
-      name:
-        "com.frida.MyCheckedChangeListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnCheckedChangeListener],
-      methods: {
-        onCheckedChanged: function (_buttonView: any, isChecked: boolean) {
+    const checkedListener = createJavaListener({
+      key: "compound-button-checked-change",
+      interfaceClass: OnCheckedChangeListener,
+      callbacks: {
+        onCheckedChanged: (_buttonView: any, isChecked: boolean) => {
           self.value = !!isChecked;
           self.emit("valueChanged", self.value);
           if (self.handler) {
-            setImmediate(() => self.handler!(self.value));
+            deferSafe(`Switch:${self.id}:valueChanged`, () => self.handler!(self.value));
           }
         },
       },
     });
+    this.own(() => checkedListener.dispose());
+    sw.setOnCheckedChangeListener(checkedListener.instance);
 
-    sw.setOnCheckedChangeListener(checkedListener.$new());
-
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.MySwitchRowClickListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnClickListener],
-      methods: {
-        onClick: function (_v: any) {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: OnClickListener,
+      callbacks: {
+        onClick: (_v: any) => {
           if (!self.switchView) return;
           self.switchView.setChecked(!self.switchView.isChecked());
         },
       },
     });
+    this.own(() => clickListener.dispose());
 
     row.setClickable(true);
-    row.setOnClickListener(clickListener.$new());
+    row.setOnClickListener(clickListener.instance);
 
     row.addView(label);
     row.addView(sw);

@@ -7,7 +7,7 @@ type LogItem = {
 };
 type LogListener = (items: LogItem[]) => void;
 export declare class Logger {
-    on(arg0: string, arg1: (level: LogLevel, message: string) => void): void;
+    on(event: string, listener: (level: LogLevel, message: string) => void): () => void;
     private static _instance;
     static get instance(): Logger;
     private levelPriority;

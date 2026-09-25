@@ -1,6 +1,7 @@
-import Java from "frida-java-bridge";
+import Java from "../../java-runtime.js";
 import { API } from "../../api.js";
 import { Theme } from "./theme.js";
+import { readDisplayDensity } from "../../android-runtime.js";
 
 export type StyleRole =
   | "overlay"
@@ -28,8 +29,7 @@ export type StyleRole =
   | "inputField";
 
 export function dp(ctx: any, v: number): number {
-  const dm = ctx.getResources().getDisplayMetrics();
-  return Math.floor(v * dm.density.value + 0.5);
+  return Math.floor(v * readDisplayDensity(ctx) + 0.5);
 }
 
 export function applyStyle(view: any, role: StyleRole, theme: Theme) {

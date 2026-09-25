@@ -61,6 +61,7 @@ web_modules/
 
 # Output of 'npm pack'
 *.tgz
+!frida-ui-runtime-2.0.0.tgz
 
 # Yarn Integrity file
 .yarn-integrity
@@ -140,3 +141,11 @@ vite.config.ts.timestamp-*
 .claude
 .venv
 example.js
+
+# Device-test build artifacts
+android-test-app/.gradle/
+android-test-app/build/
+android-test-app/app/build/
+android-test-app/local.properties
+tests/device/*.js
+tests/device/*.png

@@ -2,7 +2,8 @@ import { API } from "../api.js";
 import { UIComponent } from "./ui-components.js";
 import { applyStyle, dp } from "./style/style.js";
 import { Logger } from "../logger.js";
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
+import { createJavaListener } from "../android-listener.js";
 
 export class Collapsible extends UIComponent {
   private title: string;
@@ -154,18 +155,12 @@ export class Collapsible extends UIComponent {
 
     // ✅ 把 init 前添加的子组件补进来（照 float-menu 的 pending 思路）
     if (this.pendingChildren.length > 0) {
-      const ctx = this.view.getContext();
       for (const c of this.pendingChildren) {
         try {
-          this.menu.uiComponents.set(c.getId(), c);
-          c.setMenu(this.menu);
-          c.init(ctx);
-          const v = this.menu.prepareComponentView(ctx, c);
-          if (v) this.contentContainer.addView(v);
-          this.menu.bindComponentEvents(c);
-        } catch (e) {
+          this.menu.attachNestedComponent(this.id, c, this.contentContainer);
+        } catch (error) {
           Logger.instance.error(
-            `[Collapsible:${this.id}] addChild: ${c.getId()} - ${e}`,
+            `[Collapsible:${this.id}] addChild: ${c.getId()} - ${error}`,
           );
         }
       }
@@ -182,20 +177,17 @@ export class Collapsible extends UIComponent {
     const OnClickListener = API.OnClickListener;
     const self = this;
 
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.CollapsibleClickListener" +
-        Date.now() +
-        Math.random().toString(36).substring(4),
-      implements: [OnClickListener],
-      methods: {
-        onClick: function () {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: OnClickListener,
+      callbacks: {
+        onClick: () => {
           self.toggle();
         },
       },
     });
-
-    titleRow.setOnClickListener(clickListener.$new());
+    this.own(() => clickListener.dispose());
+    titleRow.setOnClickListener(clickListener.instance);
   }
 
   protected updateView(): void {
@@ -282,24 +274,11 @@ export class Collapsible extends UIComponent {
       return;
     }
 
-    Java.scheduleOnMainThread(() => {
-      try {
-        // 必须添加，不然无法通过id取得组件
-        this.menu.uiComponents.set(component.getId(), component);
-        component.setMenu(this.menu);
-
-        const ctx = this.view.getContext(); // ✅ 跟 float-menu 一样，拿容器 context
-        // component.init(ctx);
-        // const v = component.getView();
-        const v = this.menu.prepareComponentView(ctx, component);
-
-        if (v) this.contentContainer.addView(v);
-
-        this.menu.bindComponentEvents(component);
-      } catch (e) {
-        Logger.instance.error(`[Collapsible:${this.id}] addChild error: ${e}`);
-      }
-    });
+    void this.menu
+      .addNestedComponent(this.id, component, this.contentContainer)
+      .catch((error) =>
+        Logger.instance.error(`[Collapsible:${this.id}] addChild error: ${error}`),
+      );
   }
 
   public addChildren(components: UIComponent[]): void {

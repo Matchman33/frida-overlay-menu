@@ -5,11 +5,12 @@ type Listener = (...args: any[]) => void;
 export class EventEmitter {
   private events: Map<string, Listener[]> = new Map();
 
-  on(event: string, listener: Listener): void {
+  on(event: string, listener: Listener): () => void {
     if (!this.events.has(event)) {
       this.events.set(event, []);
     }
     this.events.get(event)!.push(listener);
+    return () => this.off(event, listener);
   }
 
   off(event: string, listener: Listener): void {
@@ -24,21 +25,23 @@ export class EventEmitter {
   emit(event: string, ...args: any[]): void {
     const listeners = this.events.get(event);
     if (!listeners) return;
-    listeners.forEach((listener) => {
-      try {
-        setImmediate(() => listener(...args));
-      } catch (error) {
-        Logger.instance.error(`Error in event listener for ${event}:`, error);
-      }
+    listeners.slice().forEach((listener) => {
+      setImmediate(() => {
+        try {
+          listener(...args);
+        } catch (error) {
+          Logger.instance.error(`Error in event listener for ${event}:`, error);
+        }
+      });
     });
   }
 
-  once(event: string, listener: Listener): void {
+  once(event: string, listener: Listener): () => void {
     const onceWrapper: Listener = (...args) => {
       this.off(event, onceWrapper);
       listener(...args);
     };
-    this.on(event, onceWrapper);
+    return this.on(event, onceWrapper);
   }
 
   removeAllListeners(event?: string): void {

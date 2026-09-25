@@ -1,8 +1,14 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
 import { applyStyle, dp } from "./style/style.js";
 import { UIComponent } from "./ui-components.js";
+import { deferSafe } from "../runtime/safe-runtime.js";
+import { getOverlayWindowType } from "../android-runtime.js";
+import {
+  createJavaListener,
+  disposeJavaListenerOwner,
+} from "../android-listener.js";
 
 // 选项类型定义
 export interface CheckBoxOption {
@@ -155,18 +161,16 @@ export class CheckBoxGroup extends UIComponent {
     triggerRow.addView(arrowView);
 
     const self = this;
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.MultiSelectTriggerClick" +
-        Date.now() +
-        Math.random().toString(36).slice(2),
-      implements: [OnClickListener],
-      methods: {
-        onClick: function () {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: OnClickListener,
+      callbacks: {
+        onClick: () => {
           self.openMultiSelectDialog(context);
         },
       },
     });
+    this.own(() => clickListener.dispose());
 
     triggerRow.setClickable(true);
     triggerRow.setOnClickListener(clickListener.$new());
@@ -183,6 +187,9 @@ export class CheckBoxGroup extends UIComponent {
 
   // 多选弹窗：继续保留原生样式和逻辑
   private openMultiSelectDialog(context: any) {
+    Java.scheduleOnMainThread(() => {
+      let releaseDialogListeners = () => {};
+      try {
     const AlertDialogBuilder = API.AlertDialogBuilder;
     const String = API.JString;
 
@@ -200,15 +207,17 @@ export class CheckBoxGroup extends UIComponent {
     const DialogClickListener = API.DialogClickListener;
 
     const self = this;
+    const dialogListenerOwner = `CheckBoxGroup:${this.id}:dialog:${Date.now()}:${Math.random()}`;
+    releaseDialogListeners = this.own(() =>
+      disposeJavaListenerOwner(dialogListenerOwner),
+    );
 
-    const multiListener = Java.registerClass({
-      name:
-        "com.frida.MultiChoiceListener" +
-        Date.now() +
-        Math.random().toString(36).slice(2),
-      implements: [DialogMultiChoiceListener],
-      methods: {
-        onClick: function (_dialog: any, which: number, isChecked: boolean) {
+    const multiListener = createJavaListener({
+      key: "dialog-multi-choice",
+      owner: dialogListenerOwner,
+      interfaceClass: DialogMultiChoiceListener,
+      callbacks: {
+        onClick: (_dialog: any, which: number, isChecked: boolean) => {
           const opt = opts[which];
           self.optionsMap.set(opt.id, { ...opt, checked: isChecked });
           self.value = self.getCheckedValues();
@@ -216,7 +225,7 @@ export class CheckBoxGroup extends UIComponent {
           self.emit("change", self.value, { id: opt.id, checked: isChecked });
 
           if (self.changeHandler) {
-            setImmediate(() =>
+            deferSafe(`CheckBoxGroup:${self.id}:change`, () =>
               self.changeHandler!(self.value, {
                 id: opt.id,
                 checked: isChecked,
@@ -227,20 +236,21 @@ export class CheckBoxGroup extends UIComponent {
       },
     });
 
-    const okListener = Java.registerClass({
-      name:
-        "com.frida.MultiChoiceOk" +
-        Date.now() +
-        Math.random().toString(36).slice(2),
-      implements: [DialogClickListener],
-      methods: {
-        onClick: function (dialog: any, _which: number) {
+    const okListener = createJavaListener({
+      key: "dialog-click",
+      owner: dialogListenerOwner,
+      interfaceClass: DialogClickListener,
+      callbacks: {
+        onClick: (dialog: any, _which: number) => {
           self.value = self.getCheckedValues();
           self.updateView();
           self.emit("valueChanged", self.value);
 
           if (self.valueChangeHandler) {
-            setImmediate(() => self.valueChangeHandler!(self.value));
+            deferSafe(
+              `CheckBoxGroup:${self.id}:valueChanged`,
+              () => self.valueChangeHandler!(self.value),
+            );
           }
 
           dialog.dismiss();
@@ -248,14 +258,12 @@ export class CheckBoxGroup extends UIComponent {
       },
     });
 
-    const cancelListener = Java.registerClass({
-      name:
-        "com.frida.MultiChoiceCancel" +
-        Date.now() +
-        Math.random().toString(36).slice(2),
-      implements: [DialogClickListener],
-      methods: {
-        onClick: function (dialog: any, _which: number) {
+    const cancelListener = createJavaListener({
+      key: "dialog-click",
+      owner: dialogListenerOwner,
+      interfaceClass: DialogClickListener,
+      callbacks: {
+        onClick: (dialog: any, _which: number) => {
           dialog.dismiss();
         },
       },
@@ -268,24 +276,31 @@ export class CheckBoxGroup extends UIComponent {
     builder.setNegativeButton(String.$new("取消"), cancelListener.$new());
 
     const dialog = builder.create();
+    const dismissListener = createJavaListener({
+      key: "dialog-dismiss",
+      owner: dialogListenerOwner,
+      interfaceClass: API.DialogInterfaceOnDismissListener,
+      callbacks: { onDismiss: releaseDialogListeners },
+    });
+    dialog.setOnDismissListener(dismissListener.instance);
 
     // 继续保持悬浮窗类型
     const WindowManagerLP = API.LayoutParams;
-    const BuildVERSION = API.BuildVERSION;
-
     const win = dialog.getWindow();
     if (win) {
-      if (BuildVERSION.SDK_INT.value >= 26) {
-        win.setType(WindowManagerLP.TYPE_APPLICATION_OVERLAY.value);
-      } else {
-        win.setType(WindowManagerLP.TYPE_PHONE.value);
-      }
+      win.setType(getOverlayWindowType(WindowManagerLP));
 
-      win.addFlags(WindowManagerLP.FLAG_NOT_FOCUSABLE.value);
       win.addFlags(WindowManagerLP.FLAG_NOT_TOUCH_MODAL.value);
     }
 
     dialog.show();
+      } catch (error) {
+        releaseDialogListeners();
+        Logger.instance.error(
+          `[CheckBoxGroup:${this.id}] Failed to show dialog: ${error}`,
+        );
+      }
+    });
   }
 
   protected updateView(): void {
@@ -337,11 +352,15 @@ export class CheckBoxGroup extends UIComponent {
     this.emit("valueChanged", this.value);
 
     if (this.changeHandler) {
-      this.changeHandler(this.value, { id: opt.id, checked });
+      deferSafe(`CheckBoxGroup:${this.id}:change`, () =>
+        this.changeHandler!(this.value, { id: opt.id, checked }),
+      );
     }
 
     if (this.valueChangeHandler) {
-      this.valueChangeHandler(this.value);
+      deferSafe(`CheckBoxGroup:${this.id}:valueChanged`, () =>
+        this.valueChangeHandler!(this.value),
+      );
     }
   }
 
@@ -363,8 +382,16 @@ export class CheckBoxGroup extends UIComponent {
     this.emit("change", this.value);
     this.emit("valueChanged", this.value);
 
-    if (this.changeHandler) this.changeHandler(this.value);
-    if (this.valueChangeHandler) this.valueChangeHandler(this.value);
+    if (this.changeHandler) {
+      deferSafe(`CheckBoxGroup:${this.id}:change`, () =>
+        this.changeHandler!(this.value),
+      );
+    }
+    if (this.valueChangeHandler) {
+      deferSafe(`CheckBoxGroup:${this.id}:valueChanged`, () =>
+        this.valueChangeHandler!(this.value),
+      );
+    }
   }
 
   public getOptions(): CheckBoxOption[] {

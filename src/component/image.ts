@@ -1,4 +1,4 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
 import { UIComponent } from "./ui-components.js";

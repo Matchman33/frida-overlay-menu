@@ -18,19 +18,19 @@ import { DarkNeonTheme } from "./src/component/style/theme";
 import { Selector } from "./src/component/selector";
 import { Slider } from "./src/component/slider";
 import { ConstantConfig } from "./src/constant-config";
-import Java from "frida-java-bridge";
 ConstantConfig.isDev = true;
-Java.perform(() => {
-  const options: FloatMenuOptions = {
+const options: FloatMenuOptions = {
     width: 1200,
     height: 1400,
     x: 0,
     y: 0,
     theme: DarkNeonTheme,
-    iconWidth: 200,
-    iconHeight: 200,
+    icon: {
+      base64: iconBase64,
+      width: 200,
+      height: 200,
+    },
     logMaxLines: 50,
-    iconBase64: iconBase64,
     title: "综合测试用例",
     version: "v2.2.1",
     tabs: [
@@ -43,10 +43,9 @@ Java.perform(() => {
       { id: "layout", label: "布局组件" },
       { id: "interactive", label: "交互演示" },
     ],
-  };
+};
 
-  const menu = new FloatMenu(options);
-  menu.show();
+void FloatMenu.launch(options, async menu => {
   menu.logger.info("开始创建综合测试用例，涵盖所有组件...");
 
   menu.logger.info("悬浮窗已创建，开始添加组件...");
@@ -679,7 +678,7 @@ Java.perform(() => {
 
   menu.logger.info("所有组件已添加完成！");
   menu.toast("综合测试用例已加载完成");
-});
+}).catch(error => console.error(error));
 
 // 编译说明：
 // 1. 安装依赖: npm install

@@ -1,7 +1,7 @@
 {
-  "name": "frida-overlay-menu",
-  "version": "1.3.2",
-  "description": "借助frida调用Java Api绘制悬浮窗组件",
+  "name": "frida-ui-runtime",
+  "version": "2.0.0",
+  "description": "Lifecycle-safe Android UI runtime for Frida scripts",
   "license": "MIT",
   "private": false,
   "type": "module",
@@ -15,11 +15,12 @@
     "dev": "frida-compile example.ts -o example.js -w",
     "build": "tsc",
     "prepublishOnly": "npm run build",
-    "check": "tsc --noEmit"
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "check": "tsc --noEmit && node --test tests/*.test.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Matchman33/frida-overlay-menu"
+    "url": "git+https://github.com/Matchman33/frida-ui-runtime"
   },
   "keywords": [
     "frida",
@@ -29,13 +30,14 @@
     "overlay",
     "hooking"
   ],
+  "peerDependencies": {
+    "frida-java-bridge": "*"
+  },
   "devDependencies": {
     "@types/frida-gum": "^19.0.1",
     "@types/node": "^24.0.10",
     "frida-compile": "^19.0.4",
+    "frida-java-bridge": "7.0.4",
     "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "frida-java-bridge": "^7.0.13"
   }
 }

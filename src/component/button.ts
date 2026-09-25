@@ -1,6 +1,8 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
+import { deferSafe } from "../runtime/safe-runtime.js";
+import { createJavaListener } from "../android-listener.js";
 import { applyStyle } from "./style/style.js";
 import { UIComponent } from "./ui-components.js";
 
@@ -43,23 +45,20 @@ export class Button extends UIComponent {
 
     const OnClickListener = API.OnClickListener;
     const self = this;
-    const clickListener = Java.registerClass({
-      name:
-        "com.frida.MyClickListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnClickListener],
-      methods: {
-        onClick: function (_v) {
+    const clickListener = createJavaListener({
+      key: "view-click",
+      interfaceClass: OnClickListener,
+      callbacks: {
+        onClick: (_v: any) => {
           self.emit("click");
           if (self.handler) {
-            setImmediate(self.handler);
+            deferSafe(`Button:${self.id}:click`, self.handler);
           }
         },
       },
     });
-
-    this.view.setOnClickListener(clickListener.$new());
+    this.own(() => clickListener.dispose());
+    this.view.setOnClickListener(clickListener.instance);
   }
 
   protected updateView(): void {

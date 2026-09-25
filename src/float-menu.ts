@@ -8,11 +8,43 @@ import { logicalToWindow, windowToLogical } from "./utils.js";
 import { TabsView } from "./component/views/tabs-view.js";
 import { HeaderView } from "./component/views/header-view.js";
 import { ConstantConfig } from "./constant-config.js";
-import Java from "frida-java-bridge";
+import {
+  assertJavaBridgeCompatible,
+  ensureWindowNotFocusable,
+  getApplicationContext,
+  getOverlayWindowType,
+  getWindowManager,
+  readDisplaySize,
+  runWhenJavaReady,
+  scheduleOnMainThread,
+  waitForJavaAvailable,
+  waitForApplicationContext,
+} from "./android-runtime.js";
+import { ComponentRegistry } from "./runtime/component-registry.js";
+import {
+  LifecycleController,
+  LifecycleState,
+} from "./runtime/lifecycle-controller.js";
+import { ListenerRegistry } from "./runtime/listener-registry.js";
+import Java from "./java-runtime.js";
+import { createJavaListener } from "./android-listener.js";
+import { runLaunchSequence } from "./runtime/launch-sequence.js";
+import {
+  DEFAULT_PERMISSION_DENIED_MESSAGE,
+  InvalidOverlayIconError,
+  normalizeIconBase64,
+  requireOverlayPermission,
+} from "./runtime/overlay-options.js";
 
 export interface TabDefinition {
   id: string;
   label: string;
+}
+
+export interface FloatMenuIconOptions {
+  base64: string;
+  width?: number;
+  height?: number;
 }
 
 export interface FloatMenuOptions {
@@ -21,9 +53,8 @@ export interface FloatMenuOptions {
   height?: number;
   x?: number;
   y?: number;
-  iconWidth?: number;
-  iconHeight?: number;
-  iconBase64?: string; // base64 encoded icon for floating window
+  icon?: FloatMenuIconOptions;
+  permissionDeniedMessage?: string;
   logMaxLines?: number;
   theme?: Theme;
   title?: string; // Main title text (default: "Frida Float Menu")
@@ -31,12 +62,58 @@ export interface FloatMenuOptions {
   activeTab?: string; // Initially active tab ID (default: first tab or "default")
 }
 
+export type MenuPresentation = "icon" | "menu";
+export type FloatMenuSetup = (menu: FloatMenu) => void | Promise<void>;
+
+export interface FloatMenuSnapshot {
+  activeTabId: string;
+  presentation: MenuPresentation;
+  components: Record<string, unknown>;
+}
+
+const HIDDEN_HOTSPOT_MESSAGE = "菜单已隐藏，点击原悬浮图标位置可重新打开";
+
 export class FloatMenu {
+  public static async waitForReady(timeoutMs: number = 30000): Promise<any> {
+    assertJavaBridgeCompatible(Java);
+    const startedAt = Date.now();
+    await waitForJavaAvailable(Java, timeoutMs);
+    const remaining = Math.max(1, timeoutMs - (Date.now() - startedAt));
+    return waitForApplicationContext(Java, remaining);
+  }
+
+  public static async create(
+    options: FloatMenuOptions = {},
+    timeoutMs: number = 30000,
+  ): Promise<FloatMenu> {
+    await FloatMenu.waitForReady(timeoutMs);
+    return runWhenJavaReady(
+      Java,
+      () => new FloatMenu(options),
+      timeoutMs,
+      "FloatMenu creation",
+    );
+  }
+
+  public static launch(
+    options: FloatMenuOptions = {},
+    setup: FloatMenuSetup = () => {},
+    timeoutMs: number = 30000,
+  ): Promise<FloatMenu> {
+    return runLaunchSequence(
+      () => FloatMenu.create(options, timeoutMs),
+      setup,
+      error => Logger.instance.warn("FloatMenu launch cleanup failed:", error),
+    );
+  }
+
   public options: FloatMenuOptions;
   private headerView: any; // 标题栏容器
   private headerComponent: HeaderView;
   private iconView: any; // 图标容器
-  public uiComponents: Map<string, UIComponent> = new Map();
+  private readonly components = new ComponentRegistry<UIComponent>();
+  private readonly componentListeners = new ListenerRegistry();
+  private readonly lifecycle = new LifecycleController();
   private pendingComponents: Array<{
     id: string;
     component: UIComponent;
@@ -50,9 +127,14 @@ export class FloatMenu {
   private lastTouchY: any;
   private screenWidth: any;
   private screenHeight: any;
+  private readonly iconWidth: number;
+  private readonly iconHeight: number;
   private menuWindowParams: any;
   private iconWindowParams: any;
   private iconContainerWin: any;
+  private iconAttached: boolean = false;
+  private menuAttached: boolean = false;
+  private lastPresentation: MenuPresentation = "icon";
   private menuContainerWin: any; // 菜单界面窗口。是最底层容器
 
   private menuPanelView: any; // 真正用来添加组件的容器
@@ -61,9 +143,7 @@ export class FloatMenu {
   private tabsView: TabsView;
   public get context(): any {
     if (this._context === null) {
-      this._context = Java.use("android.app.ActivityThread")
-        .currentApplication()
-        .getApplicationContext();
+      this._context = getApplicationContext(Java);
     }
     return this._context;
   }
@@ -71,23 +151,33 @@ export class FloatMenu {
 
   public get windowManager(): any {
     if (this._windowManager === null) {
-      const Context = API.Context;
-      this._windowManager = Java.cast(
-        this.context.getSystemService(Context.WINDOW_SERVICE.value),
-        API.ViewManager,
-      );
+      this._windowManager = getWindowManager(Java, this.context);
     }
     return this._windowManager;
   }
 
-  constructor(options: FloatMenuOptions = {}) {
+  private constructor(options: FloatMenuOptions = {}) {
+    const iconWidth = options.icon?.width ?? 200;
+    const iconHeight = options.icon?.height ?? 200;
+    if (!Number.isFinite(iconWidth) || iconWidth <= 0) {
+      throw new RangeError("Overlay icon width must be greater than zero");
+    }
+    if (!Number.isFinite(iconHeight) || iconHeight <= 0) {
+      throw new RangeError("Overlay icon height must be greater than zero");
+    }
+    const icon = options.icon
+      ? {
+          base64: normalizeIconBase64(options.icon.base64),
+          width: Math.round(iconWidth),
+          height: Math.round(iconHeight),
+        }
+      : undefined;
+
     this.options = {
       width: 1200,
       height: 1400,
       x: 0,
       y: 0,
-      iconWidth: 200,
-      iconHeight: 200,
       logMaxLines: 100,
       version: "v1.0.0",
       title: "Frida Float Menu",
@@ -95,22 +185,25 @@ export class FloatMenu {
       tabs: [],
       activeTab: undefined,
       ...options,
+      icon,
+      permissionDeniedMessage:
+        options.permissionDeniedMessage ?? DEFAULT_PERMISSION_DENIED_MESSAGE,
     };
+    this.iconWidth = Math.round(iconWidth);
+    this.iconHeight = Math.round(iconHeight);
     this.logger = Logger.instance;
 
-    Java.perform(() => {
-      const resources = this.context.getResources();
-      const metrics = resources.getDisplayMetrics();
-      ConstantConfig.screenWidth = metrics.widthPixels.value;
-      ConstantConfig.screenHeight = metrics.heightPixels.value;
-      this.screenWidth = ConstantConfig.screenWidth;
-      this.screenHeight = ConstantConfig.screenHeight;
+    const display = readDisplaySize(this.context, this.windowManager);
+    ConstantConfig.screenWidth = display.width;
+    ConstantConfig.screenHeight = display.height;
+    this.screenWidth = display.width;
+    this.screenHeight = display.height;
 
-      this.options.height = Math.min(
-        this.options.height!,
-        ConstantConfig.screenHeight - 80,
-      );
-    });
+    this.options.width = Math.min(this.options.width!, display.width);
+    this.options.height = Math.min(
+      this.options.height!,
+      Math.max(1, display.height - 80),
+    );
 
 
     this.headerComponent = new HeaderView(this.options.theme!);
@@ -125,6 +218,32 @@ export class FloatMenu {
     this.tabsView.initializeTabs();
   }
 
+  public get state(): LifecycleState {
+    return this.lifecycle.state;
+  }
+
+  private runOnMainThread<T>(label: string, operation: () => T): Promise<T> {
+    return scheduleOnMainThread(Java, operation, 30000, label);
+  }
+
+  private reportAsyncFailure(label: string, error: unknown): void {
+    this.logger.error(`${label}:`, error);
+  }
+
+  private enforceNonFocusableWindow(
+    window: any,
+    params: any,
+    attached: boolean,
+  ): void {
+    const changed = ensureWindowNotFocusable(params, API.LayoutParams);
+    try {
+      window?.clearFocus?.();
+    } catch {}
+    if (changed && attached) {
+      this.windowManager.updateViewLayout(window, params);
+    }
+  }
+
   private addDragListener(
     targetView: any,
     window: any,
@@ -136,9 +255,9 @@ export class FloatMenu {
     // const isShow = isShowing();
     targetView.setClickable(true);
     const getBounds = () => {
-      const w = this.isIconMode ? this.options.iconWidth! : this.options.width!;
+      const w = this.isIconMode ? this.iconWidth : this.options.width!;
       const h = this.isIconMode
-        ? this.options.iconHeight!
+        ? this.iconHeight
         : this.options.height!;
       return {
         left: 0,
@@ -155,14 +274,12 @@ export class FloatMenu {
     // 在 addDragListener 里加两个局部变量（闭包变量）
     let touchOffsetX = 0;
     let touchOffsetY = 0;
-    const touchListener = Java.registerClass({
-      name:
-        "com.frida.FloatDragListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnTouchListener],
-      methods: {
-        onTouch: function (v: any, event: any) {
+    const touchListener = createJavaListener({
+      key: "view-touch",
+      interfaceClass: OnTouchListener,
+      fallback: { onTouch: false },
+      callbacks: {
+        onTouch: (_v: any, event: any) => {
           const action = event.getAction();
 
           switch (action) {
@@ -210,10 +327,10 @@ export class FloatMenu {
                   wx,
                   wy,
                   self.isIconMode
-                    ? self.options.iconWidth!
+                    ? self.iconWidth
                     : self.options.width!,
                   self.isIconMode
-                    ? self.options.iconHeight!
+                    ? self.iconHeight
                     : self.options.height!,
                 );
                 let newX = p.x;
@@ -240,17 +357,20 @@ export class FloatMenu {
                   // 再次被点击以后设置为不透明
                   self.iconContainerWin.setAlpha(1);
 
-                  self.toggleView();
+                  void self.present("menu").catch((error) =>
+                    self.reportAsyncFailure("Failed to open menu", error),
+                  );
                 } catch {}
               }
               return true;
             }
           }
+          return false;
         },
       },
     });
-
-    targetView.setOnTouchListener(touchListener.$new());
+    this.componentListeners.add("java:menu", () => touchListener.dispose());
+    targetView.setOnTouchListener(touchListener.instance);
   }
 
   private createMenuContainerWindow() {
@@ -317,7 +437,7 @@ export class FloatMenu {
       this.options.height,
       0,
       0,
-      2038, // TYPE_APPLICATION_OVERLAY
+      getOverlayWindowType(LayoutParams),
       LayoutParams.FLAG_NOT_FOCUSABLE.value |
         LayoutParams.FLAG_NOT_TOUCH_MODAL.value,
       1, // PixelFormat.TRANSLUCENT
@@ -337,17 +457,12 @@ export class FloatMenu {
       },
       {
         onMinimize: () => {
-          this.isIconMode = true;
-          this.toggleView();
+          void this.present("icon").catch((error) =>
+            this.reportAsyncFailure("Failed to minimize menu", error),
+          );
         },
         onHide: () => {
-          // this.isIconMode = true;
-          // this.toggleView();
-          this.menuContainerWin.setVisibility(View.GONE.value);
-          this.iconContainerWin.setVisibility(View.VISIBLE.value);
-
-          this.hide();
-          this.toast("菜单已隐藏,单击原来位置显示");
+          void this.concealFromHeader();
         },
       },
     );
@@ -370,6 +485,7 @@ export class FloatMenu {
     // attach window
     // --------------------
     this.windowManager.addView(this.menuContainerWin, this.menuWindowParams);
+    this.menuAttached = true;
     this.menuContainerWin.setVisibility(View.GONE.value);
   }
   private updatePosition(
@@ -380,13 +496,14 @@ export class FloatMenu {
     const { x: wx, y: wy } = logicalToWindow(
       newPos.x,
       newPos.y,
-      this.isIconMode ? this.options.iconWidth! : this.options.width!,
-      this.isIconMode ? this.options.iconHeight! : this.options.height!,
+      this.isIconMode ? this.iconWidth : this.options.width!,
+      this.isIconMode ? this.iconHeight : this.options.height!,
     );
     winParams.x.value = wx | 0;
     winParams.y.value = wy | 0;
 
     Java.scheduleOnMainThread(() => {
+      this.enforceNonFocusableWindow(window, winParams, true);
       this.windowManager.updateViewLayout(window, winParams);
     });
 
@@ -406,13 +523,30 @@ export class FloatMenu {
     this.iconView = ImageView.$new(this.context);
 
     // icon 图片或默认圆
-    if (this.options.iconBase64) {
-      const decoded = Base64.decode(
-        this.options.iconBase64,
-        Base64.DEFAULT.value,
-      );
-      const bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
-      this.iconView.setImageBitmap(bitmap);
+    if (this.options.icon) {
+      try {
+        const decoded = Base64.decode(
+          this.options.icon.base64,
+          Base64.DEFAULT.value,
+        );
+        if (!decoded || decoded.length <= 0) {
+          throw new InvalidOverlayIconError(
+            "Overlay icon decoded to an empty byte array",
+          );
+        }
+        const bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+        if (!bitmap) {
+          throw new InvalidOverlayIconError(
+            "Overlay icon Base64 is not a supported bitmap",
+          );
+        }
+        this.iconView.setImageBitmap(bitmap);
+      } catch (error) {
+        if (error instanceof InvalidOverlayIconError) throw error;
+        throw new InvalidOverlayIconError(
+          `Failed to decode overlay icon: ${String(error)}`,
+        );
+      }
     } else {
       this.iconView.setBackgroundColor(0xff4285f4 | 0);
       try {
@@ -425,16 +559,16 @@ export class FloatMenu {
     const { x, y } = logicalToWindow(
       this.options.x!,
       this.options.y!,
-      this.options.iconWidth!,
-      this.options.iconHeight!,
+      this.iconWidth,
+      this.iconHeight,
     );
     // icon window
     this.iconWindowParams = LayoutParams.$new(
-      this.options.iconWidth,
-      this.options.iconHeight,
+      this.iconWidth,
+      this.iconHeight,
       x,
       y,
-      2038,
+      getOverlayWindowType(LayoutParams),
       LayoutParams.FLAG_NOT_FOCUSABLE.value |
         LayoutParams.FLAG_NOT_TOUCH_MODAL.value,
       1,
@@ -443,14 +577,15 @@ export class FloatMenu {
     this.iconContainerWin = FrameLayout.$new(this.context);
     this.iconContainerWin.setLayoutParams(
       FrameLayoutParams.$new(
-        this.options.iconWidth,
-        this.options.iconHeight,
+        this.iconWidth,
+        this.iconHeight,
         Gravity.CENTER.value,
       ),
     );
     this.iconContainerWin.addView(this.iconView);
 
     this.windowManager.addView(this.iconContainerWin, this.iconWindowParams);
+    this.iconAttached = true;
 
     this.addDragListener(
       this.iconContainerWin,
@@ -460,57 +595,177 @@ export class FloatMenu {
     );
   }
 
-  /**
-   * Toggle between icon and menu view
-   */
-  public toggleView(): void {
-    Java.scheduleOnMainThread(() => {
-      const View = API.View;
-      if (this.isIconMode) {
-        this.menuContainerWin.setVisibility(View.GONE.value);
-        this.iconContainerWin.setVisibility(View.VISIBLE.value);
-      } else {
-        this.menuContainerWin.setVisibility(View.VISIBLE.value);
-        this.iconContainerWin.setVisibility(View.GONE.value);
-      }
-    });
-  }
-
-  /**
-   * Create and show the floating window
-   */
-  public show(): void {
-    Java.scheduleOnMainThread(() => {
+  private canDrawOverlays(): boolean {
+    try {
       const Settings = Java.use("android.provider.Settings");
-      if (!Settings.canDrawOverlays(this.context)) {
-        this.toast("进程没有悬浮窗权限!");
-        Logger.instance.error("Draw overlays permission not granted");
-        return;
-      }
-      try {
-        // Create icon view
-        this.createIconWindow();
-        this.createMenuContainerWindow();
+      return Boolean(Settings.canDrawOverlays(this.context));
+    } catch (error) {
+      Logger.instance.warn(
+        "Unable to query overlay permission; addView will perform the final check:",
+        error,
+      );
+      return true;
+    }
+  }
 
-        // Add any pending components that were added before window was shown
+  private showToastNow(message: string, duration: 0 | 1 = 0): void {
+    const Toast = Java.use("android.widget.Toast");
+    const JString = Java.use("java.lang.String");
+    Toast.makeText(this.context, JString.$new(message), duration).show();
+  }
+
+  private async concealFromHeader(): Promise<void> {
+    try {
+      await this.conceal();
+    } catch (error) {
+      this.reportAsyncFailure("Failed to hide menu", error);
+      return;
+    }
+
+    try {
+      await this.toast(HIDDEN_HOTSPOT_MESSAGE);
+    } catch (error) {
+      this.reportAsyncFailure("Failed to show hidden hotspot guidance", error);
+    }
+  }
+
+  private async mountInternal(): Promise<void> {
+    if (this.iconAttached && this.menuAttached) return;
+    await this.runOnMainThread("mount floating windows", () => {
+      requireOverlayPermission(
+        this.canDrawOverlays(),
+        this.options.permissionDeniedMessage!,
+        message => this.showToastNow(message),
+        error => this.logger.warn("Failed to show overlay permission Toast:", error),
+      );
+      try {
+        if (!this.iconAttached) this.createIconWindow();
+        if (!this.menuAttached) this.createMenuContainerWindow();
+        this.enforceNonFocusableWindow(
+          this.iconContainerWin,
+          this.iconWindowParams,
+          this.iconAttached,
+        );
+        this.enforceNonFocusableWindow(
+          this.menuContainerWin,
+          this.menuWindowParams,
+          this.menuAttached,
+        );
         this.processPendingComponents(this.context);
+        const View = API.View;
+        this.iconContainerWin.setVisibility(View.GONE.value);
+        this.menuContainerWin.setVisibility(View.GONE.value);
       } catch (error) {
-        Logger.instance.error("Failed to show floating window: ", error);
+        this.detachWindows();
+        throw error;
       }
+    });
+    this.lifecycle.transition("mounted");
+  }
+
+  private async presentInternal(mode: MenuPresentation): Promise<void> {
+    await this.mountInternal();
+    await this.runOnMainThread(`present ${mode}`, () => {
+      const View = API.View;
+      this.isIconMode = mode === "icon";
+      this.lastPresentation = mode;
+      this.enforceNonFocusableWindow(
+        this.iconContainerWin,
+        this.iconWindowParams,
+        this.iconAttached,
+      );
+      this.enforceNonFocusableWindow(
+        this.menuContainerWin,
+        this.menuWindowParams,
+        this.menuAttached,
+      );
+      this.iconContainerWin.setAlpha(1);
+      this.iconContainerWin.setVisibility(
+        mode === "icon" ? View.VISIBLE.value : View.GONE.value,
+      );
+      this.menuContainerWin.setVisibility(
+        mode === "menu" ? View.VISIBLE.value : View.GONE.value,
+      );
+    });
+    this.lifecycle.transition(mode === "icon" ? "icon-visible" : "menu-visible");
+  }
+
+  public mount(): Promise<void> {
+    return this.lifecycle.run("mount", () => this.mountInternal());
+  }
+
+  public present(mode: MenuPresentation = this.lastPresentation): Promise<void> {
+    return this.lifecycle.run(`present:${mode}`, () => this.presentInternal(mode));
+  }
+
+  public conceal(): Promise<void> {
+    return this.lifecycle.run("conceal", async () => {
+      if (this.iconAttached || this.menuAttached) {
+        await this.runOnMainThread("conceal floating windows", () => {
+          const View = API.View;
+          if (this.iconAttached) {
+            this.enforceNonFocusableWindow(
+              this.iconContainerWin,
+              this.iconWindowParams,
+              true,
+            );
+            this.isIconMode = true;
+            this.iconContainerWin.setAlpha(0);
+            this.iconContainerWin.setVisibility(View.VISIBLE.value);
+          }
+          if (this.menuAttached) {
+            this.enforceNonFocusableWindow(
+              this.menuContainerWin,
+              this.menuWindowParams,
+              true,
+            );
+            this.menuContainerWin.setVisibility(View.GONE.value);
+          }
+        });
+      }
+      this.lifecycle.transition("hidden");
     });
   }
 
-  public bindComponentEvents(component: UIComponent) {
+  public toggle(): Promise<void> {
+    return this.lifecycle.run("toggle", () => {
+      const mode = this.lifecycle.state === "menu-visible"
+        ? "icon"
+        : this.lifecycle.state === "icon-visible"
+          ? "menu"
+          : this.lastPresentation;
+      return this.presentInternal(mode);
+    });
+  }
+
+  private detachWindows(): void {
+    if (this.menuContainerWin && this.menuAttached) {
+      try {
+        this.windowManager.removeView(this.menuContainerWin);
+      } catch {}
+    }
+    if (this.iconContainerWin && this.iconAttached) {
+      try {
+        this.windowManager.removeView(this.iconContainerWin);
+      } catch {}
+    }
+    this.menuAttached = false;
+    this.iconAttached = false;
+  }
+
+  private bindComponentEvents(component: UIComponent): void {
     const id = component.getId();
-    component.on("valueChanged", (value: any) => {
+    const owner = `component:${id}`;
+    this.componentListeners.clear(owner);
+    this.componentListeners.add(owner, component.on("valueChanged", (value: any) => {
       this.eventEmitter.emit("component:" + id + ":valueChanged", value);
-    });
-    component.on("action", (data: any) => {
+    }));
+    this.componentListeners.add(owner, component.on("action", (data: any) => {
       this.eventEmitter.emit("component:" + id + ":action", data);
-    });
-    component.on("click", (data: any) => {
+    }));
+    this.componentListeners.add(owner, component.on("click", (data: any) => {
       this.eventEmitter.emit("component:" + id + ":click", data);
-    });
+    }));
   }
 
   private processPendingComponents(context: any): void {
@@ -528,15 +783,20 @@ export class FloatMenu {
 
         const view = this.prepareComponentView(context, component);
 
-        if (tabInfo.container) {
-          tabInfo.container.addView(view);
-        } else {
-          this.tabsView.currentContentContainer.addView(view);
-        }
+        const container = tabInfo.container || this.tabsView.currentContentContainer;
+        if (!container) throw new Error(`Tab ${tabId} has no container`);
+        container.addView(view);
+        component.attach(container);
+        this.components.attach(id, container);
 
         tabInfo.components.add(id);
         this.bindComponentEvents(component);
       } catch (error) {
+        this.componentListeners.clear(`component:${id}`);
+        this.components.remove(id);
+        const tabInfo = this.tabsView.tabs.get(tabId);
+        tabInfo?.components.delete(id);
+        component.dispose();
         Logger.instance.error(
           `Failed to add pending component ${id}: ` + error,
         );
@@ -546,13 +806,13 @@ export class FloatMenu {
     this.pendingComponents = [];
   }
 
-  public prepareComponentView(context: any, component: any): any {
+  private prepareComponentView(context: any, component: UIComponent): any {
     const LinearLayoutParams = API.LinearLayoutParams;
     const ViewGroupLayoutParams = API.ViewGroupLayoutParams;
 
     const gapNormal = dp(context, 10);
 
-    component.init(context);
+    component.initialize(context, this);
 
     const view = component.getView();
 
@@ -567,189 +827,171 @@ export class FloatMenu {
     return view;
   }
 
-  /**
-   * Hide and destroy the floating window
-   */
-  public hide(): void {
-    Java.scheduleOnMainThread(() => {
-      try {
-        this.iconContainerWin.setAlpha(0); // 完全透明
-        this.windowManager.updateViewLayout(
-          this.iconContainerWin,
-          this.iconWindowParams,
-        );
-      } catch (error) {
-        Logger.instance.error("Failed to hide floating window: " + error);
+  public dispose(): Promise<void> {
+    return this.lifecycle.run("dispose", async () => {
+      if (this.lifecycle.disposed) return;
+      this.componentListeners.clearAll();
+      this.eventEmitter.removeAllListeners();
+      for (const { component } of this.components.values()) component.detach();
+      this.headerComponent.destroy();
+      this.tabsView.destroy();
+      await this.runOnMainThread("dispose floating windows", () => {
+        this.detachWindows();
+      });
+      this.lifecycle.transition("disposing");
+      for (const { component } of this.components.values()) {
+        await component.dispose();
       }
+      this.iconView = null;
+      this.iconContainerWin = null;
+      this.iconWindowParams = null;
+      this.menuPanelView = null;
+      this.menuContainerWin = null;
+      this.menuWindowParams = null;
+      this.pendingComponents = [];
+      this.components.clear();
+      this.lifecycle.transition("disposed");
     });
   }
 
-  public toast(msg: string, duration: 0 | 1 = 0): void {
-    Java.scheduleOnMainThread(() => {
-      var toast = Java.use("android.widget.Toast");
-      toast
-        .makeText(
-          this.context,
-          Java.use("java.lang.String").$new(msg),
-          duration,
-        )
-        .show();
-    });
+  public toast(msg: string, duration: 0 | 1 = 0): Promise<void> {
+    return this.runOnMainThread("show toast", () =>
+      this.showToastNow(msg, duration),
+    );
   }
 
-  /**
-   * Add a UI component to the floating window
-   * @param id Unique identifier for the component
-   * @param component UI component instance
-   */
-  public addComponent(component: UIComponent, tabId?: string): void {
+  public addComponent(component: UIComponent, tabId?: string): Promise<void> {
     const id = component.getId();
-    // Determine which tab this component belongs to
-    const targetTabId = tabId || this.tabsView.activeTabId;
-    const tabInfo = this.tabsView.tabs.get(targetTabId);
-    if (!tabInfo) {
-      Logger.instance.error(
-        `Cannot add component ${id} - tab ${targetTabId} not found`,
-      );
-      return;
-    }
-
-    // Store component with tab information
-    this.uiComponents.set(id, component);
-    component.setMenu(this);
-
-    // Record component ID in tab's component set
-    tabInfo.components.add(id);
-
-    if (!this.menuPanelView) {
-      // Window not shown yet, queue component with tab info
-      this.pendingComponents.push({ id, component, tabId: targetTabId });
-
-      return;
-    }
-
-    // Window is shown, add component immediately
-    Java.scheduleOnMainThread(() => {
-      const context = this.menuPanelView.getContext();
-
-      const view = this.prepareComponentView(context, component);
-
-      // Add to the appropriate tab container
-      if (tabInfo.container) {
-        tabInfo.container.addView(view);
-      } else {
-        // Fallback to contentContainer (should not happen if tab container was created)
-        Logger.instance.warn(
-          `Tab container for ${targetTabId} not found, using contentContainer`,
-        );
-        this.tabsView.currentContentContainer.addView(view);
-      }
-
-      this.bindComponentEvents(component);
-    });
-    // Logger.instance.debug(`Component ${id} added to tab ${targetTabId}`);
-  }
-
-  /**
-   * Remove a UI component
-   */
-  public removeComponent(id: string): void {
-    const component = this.uiComponents.get(id);
-    if (!component) return;
-
-    // Find which tab this component belongs to
-    let targetTabId: string | null = null;
-    for (const [tabId, tabInfo] of this.tabsView.tabs) {
-      if (tabInfo.components.has(id)) {
-        targetTabId = tabId;
-        break;
-      }
-    }
-
-    // Remove from pending components if window not shown yet
-    this.pendingComponents = this.pendingComponents.filter((p) => p.id !== id);
-
-    Java.scheduleOnMainThread(() => {
-      const view = component.getView();
-
-      if (targetTabId) {
-        // Remove from the specific tab container
-        const tabInfo = this.tabsView.tabs.get(targetTabId);
-        if (tabInfo && tabInfo.container) {
-          try {
-            tabInfo.container.removeView(view);
-          } catch (e) {
-            // Fallback to contentContainer
-            if (this.tabsView.currentContentContainer) {
-              try {
-                this.tabsView.currentContentContainer.removeView(view);
-              } catch (e2) {
-                // Continue to other fallbacks
-              }
-            }
-          }
-        } else if (this.tabsView.currentContentContainer) {
-          // Tab container not found, try contentContainer
-          try {
-            this.tabsView.currentContentContainer.removeView(view);
-          } catch (e) {
-            // Continue to other fallbacks
-          }
-        }
-      } else {
-        // Component not associated with any tab (should not happen)
-        // Use original fallback logic
-        if (this.tabsView.currentContentContainer) {
-          try {
-            this.tabsView.currentContentContainer.removeView(view);
-          } catch (e) {
-            this.menuContainerWin.removeView(view);
-          }
-        } else if (this.menuContainerWin) {
-          this.menuContainerWin.removeView(view);
-        } else Logger.instance.error("error");
-      }
-    });
-
-    // Remove component from tab's component set
-    if (targetTabId) {
+    return this.lifecycle.run(`addComponent:${id}`, async () => {
+      const targetTabId = tabId || this.tabsView.activeTabId;
       const tabInfo = this.tabsView.tabs.get(targetTabId);
-      if (tabInfo) {
-        tabInfo.components.delete(id);
+      if (!tabInfo) {
+        throw new Error(`Cannot add component ${id}: tab ${targetTabId} not found`);
       }
-    }
 
-    this.uiComponents.delete(id);
+      this.components.add(component, targetTabId);
+      component.setMenu(this);
+      tabInfo.components.add(id);
 
+      if (!this.menuPanelView) {
+        this.pendingComponents.push({ id, component, tabId: targetTabId });
+        return;
+      }
+
+      try {
+        await this.runOnMainThread(`add component ${id}`, () => {
+          const context = this.menuPanelView.getContext();
+          const view = this.prepareComponentView(context, component);
+          const container = tabInfo.container || this.tabsView.currentContentContainer;
+          if (!container) throw new Error(`Tab ${targetTabId} has no container`);
+          container.addView(view);
+          component.attach(container);
+          this.components.attach(id, container);
+          this.bindComponentEvents(component);
+        });
+      } catch (error) {
+        tabInfo.components.delete(id);
+        this.components.remove(id);
+        this.componentListeners.clear(`component:${id}`);
+        component.dispose();
+        throw error;
+      }
+    });
   }
 
-  /**
-   * Get a component by id
-   */
+  public addNestedComponent(
+    ownerId: string,
+    component: UIComponent,
+    container: any,
+  ): Promise<void> {
+    const id = component.getId();
+    return this.lifecycle.run(`addNestedComponent:${id}`, async () => {
+      await this.runOnMainThread(`add nested component ${id}`, () =>
+        this.attachNestedComponent(ownerId, component, container),
+      );
+    });
+  }
+
+  public attachNestedComponent(
+    ownerId: string,
+    component: UIComponent,
+    container: any,
+  ): void {
+    const id = component.getId();
+    const owner = this.components.getEntry(ownerId);
+    if (!owner) throw new Error(`Parent component ${ownerId} is not registered`);
+    this.components.add(component, owner.tabId, ownerId);
+    component.setMenu(this);
+    try {
+      const view = this.prepareComponentView(container.getContext(), component);
+      container.addView(view);
+      component.attach(container);
+      this.components.attach(id, container);
+      this.bindComponentEvents(component);
+    } catch (error) {
+      this.components.remove(id);
+      this.componentListeners.clear(`component:${id}`);
+      component.dispose();
+      throw error;
+    }
+  }
+
+  public removeComponent(id: string): Promise<void> {
+    return this.lifecycle.run(`removeComponent:${id}`, async () => {
+      const entry = this.components.getEntry(id);
+      if (!entry) return;
+      const { component, tabId, container } = entry;
+      const tabInfo = this.tabsView.tabs.get(tabId);
+      this.pendingComponents = this.pendingComponents.filter((item) => item.id !== id);
+      this.componentListeners.clear(`component:${id}`);
+
+      if (component.isInitialized) {
+        await this.runOnMainThread(`remove component ${id}`, () => {
+          const view = component.getView();
+          const parent = container || tabInfo?.container || this.tabsView.currentContentContainer;
+          if (parent && view) (parent as any).removeView(view);
+        });
+      }
+      component.detach();
+      await component.dispose();
+      tabInfo?.components.delete(id);
+      this.components.remove(id);
+    });
+  }
+
   public getComponent<T extends UIComponent>(id: string): T | undefined {
-    return this.uiComponents.get(id) as T;
+    return this.components.get(id) as T | undefined;
   }
 
-  /**
-   * Update component value from JS
-   */
   public setComponentValue(id: string, value: any): void {
-    const component = this.uiComponents.get(id);
-    if (component) {
-      component.setValue(value);
-    }
+    this.components.get(id)?.setValue(value);
   }
 
-  /**
-   * Register event listener for component
-   */
-  public on(event: string, callback: (...args: any[]) => void): void {
-    this.eventEmitter.on(event, callback);
+  public captureState(): FloatMenuSnapshot {
+    return {
+      activeTabId: this.tabsView.activeTabId,
+      presentation: this.lastPresentation,
+      components: this.components.captureState(),
+    };
   }
 
-  /**
-   * Unregister event listener
-   */
+  public restoreState(snapshot: FloatMenuSnapshot): Promise<void> {
+    return this.lifecycle.run("restoreState", async () => {
+      if (!this.tabsView.tabs.has(snapshot.activeTabId)) {
+        throw new Error(`Cannot restore unknown tab ${snapshot.activeTabId}`);
+      }
+      this.tabsView.selectTab(snapshot.activeTabId);
+      this.lastPresentation = snapshot.presentation;
+      for (const [id, state] of Object.entries(snapshot.components)) {
+        this.components.get(id)?.restoreState(state);
+      }
+    });
+  }
+
+  public on(event: string, callback: (...args: any[]) => void): () => void {
+    return this.eventEmitter.on(event, callback);
+  }
+
   public off(event: string, callback: (...args: any[]) => void): void {
     this.eventEmitter.off(event, callback);
   }

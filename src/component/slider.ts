@@ -1,7 +1,9 @@
-import Java from "frida-java-bridge";
+import Java from "../java-runtime.js";
 import { API } from "../api.js";
 import { Logger } from "../logger.js";
 import { UIComponent } from "./ui-components.js";
+import { deferSafe } from "../runtime/safe-runtime.js";
+import { createJavaListener } from "../android-listener.js";
 
 export class Slider extends UIComponent {
   private min: number;
@@ -112,18 +114,15 @@ export class Slider extends UIComponent {
     const SeekBarOnSeekBarChangeListener = API.SeekBarOnSeekBarChangeListener;
     const self = this;
 
-    const changeListener = Java.registerClass({
-      name:
-        "com.frida.MySeekBarChangeListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [SeekBarOnSeekBarChangeListener],
-      methods: {
-        onProgressChanged: function (
+    const changeListener = createJavaListener({
+      key: "seekbar-change",
+      interfaceClass: SeekBarOnSeekBarChangeListener,
+      callbacks: {
+        onProgressChanged: (
           seekBar: any,
           progress: number,
           fromUser: boolean,
-        ) {
+        ) => {
           if (fromUser) {
             const newValue = self.progressToValue(progress);
             self.value = newValue;
@@ -136,18 +135,21 @@ export class Slider extends UIComponent {
               }
             });
             self.emit("valueChanged", newValue);
-            if (self.handler) setImmediate(() => self.handler!(newValue));
+            if (self.handler) {
+              deferSafe(`Slider:${self.id}:valueChanged`, () => self.handler!(newValue));
+            }
           }
         },
-        onStartTrackingTouch: function (seekBar: any) {
+        onStartTrackingTouch: (_seekBar: any) => {
           // Do nothing
         },
-        onStopTrackingTouch: function (seekBar: any) {
+        onStopTrackingTouch: (_seekBar: any) => {
           // Do nothing
         },
       },
     });
-    seekBar.setOnSeekBarChangeListener(changeListener.$new());
+    this.own(() => changeListener.dispose());
+    seekBar.setOnSeekBarChangeListener(changeListener.instance);
   }
 
   public onValueChange(handler: (value: number) => void) {

@@ -1,9 +1,16 @@
-import Java from "frida-java-bridge";
+import Java from "../../java-runtime.js";
 import { API } from "../../api.js";
 import { ConstantConfig } from "../../constant-config.js";
 import { Logger, LogLevel } from "../../logger.js";
 import { logicalToWindow, windowToLogical } from "../../utils.js";
+import {
+  ensureWindowNotFocusable,
+  getOverlayWindowType,
+  getWindowManager,
+} from "../../android-runtime.js";
 import { dp } from "../style/style.js";
+import { createJavaListener } from "../../android-listener.js";
+import { ListenerRegistry } from "../../runtime/listener-registry.js";
 
 export class LogViewWindow {
   private menu: any;
@@ -32,6 +39,16 @@ export class LogViewWindow {
   private _logFlushScheduled: boolean = false;
 
   private _onCloseButtonClick: (() => void) | null = null;
+
+  private enforceNonFocusableWindow(): boolean {
+    if (!this.windowParams) return false;
+    const changed = ensureWindowNotFocusable(this.windowParams, API.LayoutParams);
+    try {
+      this.windowRoot?.clearFocus?.();
+    } catch {}
+    return changed;
+  }
+  private readonly listeners = new ListenerRegistry();
   private width?: number;
   private height?: number;
   lastTouchX: any;
@@ -50,11 +67,7 @@ export class LogViewWindow {
     this.logMaxLines = logMaxLines;
     this._onCloseButtonClick = onCloseButtonClick ?? null;
 
-    const Context = API.Context;
-    this.windowManager = Java.cast(
-      this.context.getSystemService(Context.WINDOW_SERVICE.value),
-      API.ViewManager,
-    );
+    this.windowManager = getWindowManager(Java, this.context);
   }
 
   public setOnCloseButtonClick(callback: (() => void) | null): void {
@@ -102,8 +115,9 @@ export class LogViewWindow {
       this._logFlushScheduled = false;
       if (!this.logView || !this._logRing) return;
 
-      while (this._logPending.length > 0) {
-        const line = this._logPending.shift() as string;
+      const pending = this._logPending;
+      this._logPending = [];
+      for (const line of pending) {
         this._logRing[this._logHead] = line;
         this._logHead = (this._logHead + 1) % this._logMaxLinesCache;
         if (this._logSize < this._logMaxLinesCache) this._logSize++;
@@ -136,7 +150,7 @@ export class LogViewWindow {
 
     // 你当前环境里 2038 已验证可显示，就继续沿用
     // 如果后面某些环境权限有问题，再统一改这里
-    return LayoutParams.TYPE_APPLICATION_OVERLAY.value;
+    return getOverlayWindowType(LayoutParams);
   }
 
   private createWindowOnce(): void {
@@ -387,13 +401,11 @@ export class LogViewWindow {
       this.titleDragHandle = header;
       this.isCreated = true;
 
-      clearBtn.setOnClickListener(
-        Java.registerClass({
-          name:
-            "LogClearClick" + Date.now() + Math.random().toString(36).slice(2),
-          implements: [API.OnClickListener],
-          methods: {
-            onClick: function () {
+      const clearClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: API.OnClickListener,
+          callbacks: {
+            onClick: () => {
               try {
                 self._logRing = new Array(
                   self._logMaxLinesCache || self.logMaxLines,
@@ -410,16 +422,15 @@ export class LogViewWindow {
               }
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("log-window", () => clearClickListener.dispose());
+      clearBtn.setOnClickListener(clearClickListener.instance);
 
-      closeBtn.setOnClickListener(
-        Java.registerClass({
-          name:
-            "LogCloseClick" + Date.now() + Math.random().toString(36).slice(2),
-          implements: [API.OnClickListener],
-          methods: {
-            onClick: function () {
+      const closeClickListener = createJavaListener({
+          key: "view-click",
+          interfaceClass: API.OnClickListener,
+          callbacks: {
+            onClick: () => {
               self.closeLogWindow();
               try {
                 if (self._onCloseButtonClick) {
@@ -430,8 +441,9 @@ export class LogViewWindow {
               }
             },
           },
-        }).$new(),
-      );
+      });
+      this.listeners.add("log-window", () => closeClickListener.dispose());
+      closeBtn.setOnClickListener(closeClickListener.instance);
 
       try {
         root.setVisibility(View.GONE.value);
@@ -473,6 +485,7 @@ export class LogViewWindow {
 
 
 
+        self.enforceNonFocusableWindow();
         self.windowManager.addView(self.windowRoot, self.windowParams);
         self.isAttached = true;
 
@@ -516,14 +529,12 @@ export class LogViewWindow {
     // 在 addDragListener 里加两个局部变量（闭包变量）
     let touchOffsetX = 0;
     let touchOffsetY = 0;
-    const touchListener = Java.registerClass({
-      name:
-        "com.frida.FloatDragListener" +
-        Date.now() +
-        Math.random().toString(36).substring(6),
-      implements: [OnTouchListener],
-      methods: {
-        onTouch: function (v: any, event: any) {
+    const touchListener = createJavaListener({
+      key: "view-touch",
+      interfaceClass: OnTouchListener,
+      fallback: { onTouch: false },
+      callbacks: {
+        onTouch: (_v: any, event: any) => {
           const action = event.getAction();
           switch (action) {
             case MotionEvent.ACTION_DOWN.value: {
@@ -586,11 +597,12 @@ export class LogViewWindow {
               return true;
             }
           }
+          return false;
         },
       },
     });
-
-    targetView.setOnTouchListener(touchListener.$new());
+    this.listeners.add("log-window", () => touchListener.dispose());
+    targetView.setOnTouchListener(touchListener.instance);
   }
   private updatePosition(
     window: any,
@@ -607,6 +619,7 @@ export class LogViewWindow {
     winParams.x.value = wx | 0;
     winParams.y.value = wy | 0;
     Java.scheduleOnMainThread(() => {
+      this.enforceNonFocusableWindow();
       this.windowManager.updateViewLayout(window, winParams);
     });
 
@@ -624,14 +637,18 @@ export class LogViewWindow {
       try {
         if (!self.windowRoot) return;
 
+        const flagsChanged = self.enforceNonFocusableWindow();
+
         self.windowRoot.setVisibility(View.VISIBLE.value);
 
         if (self.isAttached) {
           try {
-            self.windowManager.updateViewLayout(
-              self.windowRoot,
-              self.windowParams,
-            );
+            if (flagsChanged) {
+              self.windowManager.updateViewLayout(
+                self.windowRoot,
+                self.windowParams,
+              );
+            }
           } catch {}
         }
 
@@ -651,6 +668,10 @@ export class LogViewWindow {
     Java.scheduleOnMainThread(() => {
       try {
         if (!self.windowRoot) return;
+        const flagsChanged = self.enforceNonFocusableWindow();
+        if (flagsChanged && self.isAttached) {
+          self.windowManager.updateViewLayout(self.windowRoot, self.windowParams);
+        }
         self.windowRoot.setVisibility(View.GONE.value);
       } catch (e) {
         Logger.instance.error("close log window failed: " + e);
@@ -662,6 +683,7 @@ export class LogViewWindow {
     const self = this;
 
     this.isLogWindowVisible = false;
+    this.listeners.clearAll();
 
     if (this._loggerUnsub) {
       try {
