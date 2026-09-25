@@ -2,7 +2,7 @@
 
 ## Goal
 
-Rename the project to `frida-ui-runtime` and replace the implicit floating-menu lifecycle with an explicit, awaitable lifecycle while preserving the existing `frida-overlay-menu` interface through deprecated adapters.
+Rename the project to `frida-ui-runtime` and replace the implicit floating-menu lifecycle with an explicit, awaitable lifecycle. This is a breaking redesign; the former `frida-overlay-menu` lifecycle interface is removed.
 
 The runtime must remain usable when device-identity modules alter Android framework values, preserve menu state while concealed, and release all Android and JavaScript resources when disposed.
 
@@ -22,7 +22,7 @@ await menu.dispose();
 
 Lifecycle states are `created`, `mounted`, `icon-visible`, `menu-visible`, `hidden`, `disposing`, and `disposed`. Operations are serialized and idempotent. Invalid operations reject with descriptive errors.
 
-The existing constructor and `show`, `hide`, `toggleView`, and `destroy` methods remain callable. They delegate to the new lifecycle implementation, are marked `@deprecated`, and emit each migration warning at most once.
+Construction is asynchronous through `FloatMenu.create()`. The old constructor-driven initialization and `show`, `hide`, `toggleView`, and `destroy` methods are not part of the new interface. The sole consumer, `myheroes-pro`, is migrated after the runtime is stable.
 
 ## Runtime Modules
 
@@ -49,7 +49,7 @@ captureState()
 restoreState(state)
 ```
 
-Initialization and disposal are idempotent. Existing components that only implement `init`, `getView`, and `setValue` are supported through an internal compatibility adapter.
+Initialization and disposal are idempotent. All built-in components are migrated to the new lifecycle directly.
 
 ## Error Handling
 
@@ -61,9 +61,9 @@ All Android main-thread operations use one scheduler that checks disposal state,
 
 `conceal()` sets attached overlay roots to `View.GONE`. It does not change component values, active tabs, menu position, or listeners. `present()` restores the requested presentation mode. `dispose()` is the only operation that removes WindowManager views and releases component resources.
 
-## Compatibility
+## Package Migration
 
-The package is renamed to `frida-ui-runtime`. The source retains current exports and deep paths during the migration. The old package name and methods are documented as deprecated rather than removed.
+The package is renamed to `frida-ui-runtime` with a new root export surface. Internal deep imports are removed from `myheroes-pro`; required component types are exported from the package root.
 
 The tested Java bridge remains pinned to `7.0.4` in development. Supported peer versions are narrowed until additional versions pass device tests with Guise enabled.
 
