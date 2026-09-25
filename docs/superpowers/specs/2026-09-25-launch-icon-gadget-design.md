@@ -25,7 +25,7 @@ const menu = await FloatMenu.launch(options, async menu => {
 
 `launch` performs these steps in order:
 
-1. Wait for the bundled Java Bridge to become available.
+1. Wait for the consumer-provided Java Bridge to become available.
 2. Create the menu without attaching windows.
 3. Run the caller's synchronous or asynchronous setup callback.
 4. Mount the overlay windows.
@@ -62,18 +62,23 @@ import Java from "frida-java-bridge";
 export default Java;
 ```
 
-`frida-java-bridge` version `7.0.4` is an exact runtime dependency. The consumer
-uses the same exact version so the bundler resolves one module instance. All
-runtime modules import the shared adapter instead of importing the package
-directly or reading `globalThis.Java`.
+`frida-java-bridge` is an unrestricted peer dependency (`*`). The consumer
+selects and installs the bridge version. The runtime never installs a private
+copy, so the consumer and UI runtime resolve the same module instance. Version
+`7.0.4` remains a development dependency only for this repository's builds and
+tests. All runtime modules import the shared adapter instead of importing the
+package directly or reading `globalThis.Java`.
 
-Startup first waits for `Java.available`. It invokes `Java.perform` only after
-the bridge reports availability, then waits for the Android Application
-context. This supports Gadget local scripts without a REPL environment.
+Startup validates the bridge capabilities it needs, waits for
+`Java.available`, prefers `Java.performNow` for early Android framework access,
+and falls back to `Java.perform` when necessary. Missing required bridge APIs
+produce a descriptive compatibility error. This supports Gadget local scripts
+without a REPL environment.
 
-The package compatibility test scans the compiled standalone agent and requires
-exactly one Java Bridge `Runtime` construction. Zero or multiple constructions
-fail the test.
+The package compatibility test compiles an external-style entrypoint that
+imports both `frida-java-bridge` and `frida-ui-runtime`. It requires exactly one
+Java Bridge `Runtime` construction. Zero or multiple constructions fail the
+test.
 
 ## Floating Icon
 
@@ -108,6 +113,11 @@ is logged but does not replace the permission error.
 It never opens the menu automatically. Clicking the icon presents the menu;
 minimizing the menu returns to the icon.
 
+The close (`X`) action calls `conceal()`. Conceal hides the menu and makes the
+icon fully transparent while keeping its window visible, non-focusable, and
+touchable at the same coordinates. Tapping that transparent hotspot presents
+the menu directly. The component tree and active page remain mounted.
+
 `FloatMenu.create` remains hidden until the caller explicitly calls `mount` or
 `present`. Calling `present()` without a mode defaults to `icon`.
 
@@ -132,6 +142,9 @@ The independent device smoke script follows this startup model.
 - Test invalid Base64 and invalid Bitmap rejection.
 - Test permission denial Toast before `OverlayPermissionError`.
 - Test dynamic add and remove after launch and while concealed.
-- Compile a standalone Gadget-style agent and verify one Java Bridge Runtime.
+- Compile an external-style Gadget agent importing both packages and verify one
+  Java Bridge Runtime.
+- Verify minimize shows the icon, while close leaves a transparent hotspot that
+  reopens the menu from the icon's prior coordinates.
 - Use only the independent Android test host for device overlay testing.
 - Verify all overlay roots retain `FLAG_NOT_FOCUSABLE`.
