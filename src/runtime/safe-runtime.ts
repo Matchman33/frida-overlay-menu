@@ -29,5 +29,5 @@ export function deferSafe(
   callback: () => void,
   report: ErrorReporter = defaultReporter,
 ): void {
-  setImmediate(() => safeInvoke(label, callback, report));
+  setTimeout(() => safeInvoke(label, callback, report),0);
 }
