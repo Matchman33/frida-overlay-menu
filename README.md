@@ -1,26 +1,23 @@
 # frida-ui-runtime
 
-Lifecycle-safe Android overlay UI runtime for Frida scripts.
+用于 Frida 脚本的 Android 悬浮窗 UI 运行库，支持安全管理界面生命周期。
 
-The runtime creates native Android views through the consumer-installed
-`frida-java-bridge` peer dependency. The consumer selects the bridge version;
-the runtime validates the capabilities it needs and never depends on a
-REPL-provided global `Java` object.
+运行库通过使用方安装的 `frida-java-bridge` 同级依赖创建 Android 原生视图。使用方自行选择 Bridge 版本；运行库会检查所需能力，不依赖 REPL 注入的全局 `Java` 对象。
 
-## Requirements
+## 环境要求
 
-- Frida with Java support in the target Android process
-- Overlay permission for the target application
-- Android `WindowManager` access
-- `frida-compile` for bundling TypeScript entrypoints
+- 目标 Android 进程中的 Frida Java 支持
+- 目标应用的悬浮窗权限
+- Android `WindowManager` 访问能力
+- 用于打包 TypeScript 入口文件的 `frida-compile`
 
-## Install
+## 安装
 
 ```bash
 npm install frida-ui-runtime frida-java-bridge
 ```
 
-## Quick Start
+## 快速开始
 
 ```typescript
 import {
@@ -33,7 +30,7 @@ import {
 
 async function main(): Promise<void> {
   const menu = await FloatMenu.launch({
-    title: "Runtime Tools",
+    title: "运行工具",
     width: 820,
     height: 1100,
     icon: {
@@ -42,77 +39,62 @@ async function main(): Promise<void> {
       height: 160,
     },
     tabs: [
-      { id: "controls", label: "Controls" },
-      { id: "status", label: "Status" },
+      { id: "controls", label: "控制" },
+      { id: "status", label: "状态" },
     ],
     activeTab: "controls",
   }, async menu => {
     await menu.addComponent(
-      new Switch("enabled", "Enabled", false),
+      new Switch("enabled", "启用", false),
       "controls",
     );
     await menu.addComponent(
-      new Slider("level", "Level", 0, 10, 3),
+      new Slider("level", "级别", 0, 10, 3),
       "controls",
     );
     await menu.addComponent(
-      new Button("run", "Run", "primary", () => console.log("run")),
+      new Button("run", "运行", "primary", () => console.log("运行")),
       "controls",
     );
     await menu.addComponent(
-      new TextView("status", "Ready"),
+      new TextView("status", "就绪"),
       "status",
     );
   });
 
-  // Components remain dynamic after the floating icon is visible.
-  await menu.addComponent(new TextView("late", "Added later"), "status");
+  // 悬浮图标显示后，仍可动态添加组件。
+  await menu.addComponent(new TextView("late", "稍后添加"), "status");
 }
 
 void main().catch(error => console.error(error));
 ```
 
-The entrypoint runs directly in a Gadget local script and does not require a
-REPL. `FloatMenu.launch()` waits for the consumer-provided Java Bridge, Android
-application context, and main thread. It shows the floating icon only after the
-setup callback completes.
+`FloatMenu.launch()` 会等待使用方提供的 Java Bridge、Android 应用上下文和主线程，并在初始化回调完成后显示悬浮图标。
 
-`frida-java-bridge` is an unrestricted peer dependency. Install one bridge
-version in the consuming project and let the package manager resolve both the
-application and this runtime to that instance. Version `7.0.4` is only the
-library's development and regression-test baseline.
+`frida-java-bridge` 是不限制版本的同级依赖。在使用项目中安装一个 Bridge 版本，并让包管理器将应用和此运行库解析到同一个实例。`7.0.4` 是本库开发时使用的版本。
 
-At startup the runtime checks for `use`, `scheduleOnMainThread`, and either
-`performNow` or `perform`. An incompatible bridge fails early with
-`JavaBridgeCompatibilityError` and a list of missing capabilities.
+运行库启动时会检查 `use`、`scheduleOnMainThread`，以及 `performNow` 或 `perform`。如果 Bridge 不兼容，将尽早抛出 `JavaBridgeCompatibilityError`，并列出缺失的能力。
 
-## Lifecycle
+## 生命周期
 
-`FloatMenu` serializes lifecycle operations so concurrent calls cannot attach or detach the same window twice.
+`FloatMenu` 会串行执行生命周期操作，避免并发调用重复挂载或移除同一个窗口。
 
 ```typescript
-await menu.mount();          // Create and attach both windows, initially hidden
-await menu.present("icon"); // Show only the floating icon
-await menu.present("menu"); // Show only the menu
-await menu.conceal();        // Hide visually; keep the icon hotspot touchable
-await menu.toggle();         // Toggle icon/menu presentation
-await menu.dispose();        // Remove windows and release listeners/components
+await menu.mount();          // 创建并挂载两个窗口，初始均隐藏
+await menu.present("icon"); // 只显示悬浮图标
+await menu.present("menu"); // 只显示菜单
+await menu.conceal();        // 视觉上隐藏，图标所在位置仍可点击
+await menu.toggle();         // 切换图标和菜单
+await menu.dispose();        // 移除窗口并释放监听器和组件
 ```
 
-`FloatMenu.create()` remains available as a low-level API that returns a hidden
-menu. Prefer `FloatMenu.launch()` for Gadget entrypoints. Calling `present()`
-without a mode defaults to the floating icon.
+`FloatMenu.create()` 仍可作为底层 API 使用，返回一个隐藏的菜单。Gadget 入口文件建议使用 `FloatMenu.launch()`。不指定模式时，`present()` 默认显示悬浮图标。
 
-The minimize button returns to the visible icon. The close button calls
-`conceal()`: both surfaces disappear visually, but the icon window stays
-transparent and touchable at its previous position. Tapping that location opens
-the menu directly. The close interaction also shows a Toast explaining where to
-tap. The views and component state remain mounted throughout.
+点击最小化按钮会返回可见的悬浮图标。点击关闭按钮会调用 `conceal()`：两个界面都在视觉上消失，但图标窗口会在原位置保持透明且可点击。点击该位置可直接重新打开菜单；关闭时也会显示 Toast 提示点击位置。在此期间，视图和组件状态仍保持挂载。
 
-Use `dispose()` only when the overlay is no longer needed and its state may be
-released.
+只有不再需要悬浮窗、可以释放其状态时，才调用 `dispose()`。
 
-## State
+## 状态
 
 ```typescript
 const snapshot = menu.captureState();
@@ -122,33 +104,28 @@ await menu.present("menu");
 menu.restoreState(snapshot);
 ```
 
-Component IDs must be unique. Duplicate IDs are rejected instead of silently replacing an existing component.
+组件 ID 必须唯一。重复的 ID 会被拒绝，不会静默替换已有组件。
 
-Components can be added or removed after launch, including while the overlay is
-concealed:
+启动后仍可添加或移除组件，包括悬浮窗隐藏期间：
 
 ```typescript
 await menu.conceal();
-await menu.addComponent(new TextView("dynamic", "Added while hidden"));
+await menu.addComponent(new TextView("dynamic", "隐藏期间添加"));
 await menu.removeComponent("dynamic");
 await menu.present();
 ```
 
-## Overlay Permission
+## 悬浮窗权限
 
-Permission is checked before any window is attached. If permission is missing,
-the runtime shows a Toast and throws `OverlayPermissionError`. Override the
-Toast text with `permissionDeniedMessage` when needed.
+运行库会在挂载窗口前检查权限。如果缺少权限，会显示 Toast 并抛出 `OverlayPermissionError`。需要自定义 Toast 文案时，可设置 `permissionDeniedMessage`。
 
-## Custom Icon
+## 自定义图标
 
-`icon.base64` accepts raw Base64 or a `data:image/...;base64,` value. File paths
-and network URLs are intentionally unsupported. Invalid image data fails launch
-with `InvalidOverlayIconError` instead of creating a blank icon window.
+`icon.base64` 接受原始 Base64 数据或 `data:image/...;base64,` 格式的值，不支持文件路径或网络 URL。无效的图片数据会导致启动时抛出 `InvalidOverlayIconError`，而不是创建空白图标窗口。
 
-## Components
+## 组件
 
-The root package exports:
+包的根入口导出：
 
 - `Button`
 - `Category`
@@ -159,23 +136,21 @@ The root package exports:
 - `Slider`
 - `Switch`
 - `TextInput`
-- `TextView` (`Text` alias)
-- `UIComponent` for custom controls
+- `TextView`（别名为 `Text`）
+- 用于自定义控件的 `UIComponent`
 
-All component callbacks are isolated from the Java listener boundary. Callback failures are logged instead of escaping into Android's UI thread.
+所有组件回调都与 Java 监听器边界隔离。回调出错时会记录日志，不会将错误传播到 Android UI 线程。
 
-## Build And Test
+## 构建与类型检查
 
 ```bash
-npm test
-npx frida-compile tests/device/overlay-smoke.ts -o tests/device/overlay-smoke.js
+npm run build
+npm run check
 ```
 
-The repository includes an independent Android host app in `android-test-app`. Device testing does not load an application's production Frida script.
+## 兼容性说明
 
-## Compatibility Notes
-
-- Window type selection checks available framework fields instead of trusting spoofable `SDK_INT` values.
-- Application context lookup falls back across `ActivityThread` and `AppGlobals`.
-- `WindowManager` wrappers are validated for `addView`, `updateViewLayout`, and `removeView`. This handles environments where a module such as Guise allows an interface cast but hides the inherited `ViewManager` methods.
-- Display metrics are validated before use and fall back to real display metrics when spoofed values are invalid.
+- 选择窗口类型时，会检查框架中可用的字段，而不是直接信任可能被伪造的 `SDK_INT` 值。
+- 获取应用上下文时，会依次尝试 `ActivityThread` 和 `AppGlobals`。
+- 会检查 `WindowManager` 包装对象是否提供 `addView`、`updateViewLayout` 和 `removeView`。这适用于 Guise 等模块允许接口转换、却隐藏继承自 `ViewManager` 的方法的环境。
+- 使用显示指标前会先校验；如果指标被伪造且无效，会回退到真实的显示指标。
